@@ -79,7 +79,7 @@
     <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex flex-wrap justify-between items-center gap-4">
         <div class="flex items-center space-x-3">
             <div class="p-2 bg-blue-600/20 text-blue-500 rounded-lg">
-                <i class="fa-solid fa-[#5865F2] fa-eye text-xl"></i>
+                <i class="fa-solid fa-eye text-xl"></i>
             </div>
             <div>
                 <h1 class="font-bold text-lg leading-tight flex items-center gap-2">
@@ -132,9 +132,51 @@
     <!-- Main Grid Dashboard -->
     <main class="flex-1 p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 max-w-[1920px] mx-auto w-full">
         
-        <!-- Left Column: Scenes & Scene Items (5 Cols) -->
+        <!-- Left Column: Stream Preview, Scenes & Sources (5 Cols) -->
         <section class="lg:col-span-5 flex flex-col gap-4">
             
+            <!-- Live Program Preview Monitor -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col shadow-lg">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-tv text-blue-500"></i> Program Preview
+                    </h2>
+                    <div class="flex items-center gap-2">
+                        <span id="previewFps" class="text-[10px] font-mono bg-slate-800 text-slate-400 px-2 py-0.5 rounded">-- FPS</span>
+                        <button onclick="togglePreviewState()" id="btnTogglePreview" class="text-xs text-slate-400 hover:text-slate-200 bg-slate-800 px-2 py-0.5 rounded transition">
+                            <i class="fa-solid fa-pause mr-1"></i> Pause
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Video Screen Canvas Box -->
+                <div class="relative aspect-video w-full bg-slate-950 rounded-lg overflow-hidden border border-slate-800/80 flex items-center justify-center group">
+                    <img id="streamPreviewImg" class="w-full h-full object-contain hidden" alt="OBS Stream Preview">
+                    
+                    <!-- Preview Offline / Disconnected Placeholder -->
+                    <div id="previewPlaceholder" class="flex flex-col items-center justify-center text-slate-600 gap-2 p-4 text-center">
+                        <i class="fa-solid fa-display-slash text-3xl"></i>
+                        <span class="text-xs font-medium text-slate-500">Preview Feed Offline</span>
+                        <span class="text-[11px] text-slate-600">Connect to OBS to enable Program Scene Preview</span>
+                    </div>
+
+                    <!-- Overlay Controls / Live Badge -->
+                    <div id="previewOverlay" class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3 pointer-events-none">
+                        <div class="flex justify-between items-center">
+                            <span class="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1 shadow">
+                                <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span> Program
+                            </span>
+                            <span id="previewSceneLabel" class="text-xs font-semibold text-white drop-shadow">--</span>
+                        </div>
+                        <div class="flex justify-end pointer-events-auto">
+                            <button onclick="fullscreenPreview()" class="p-1.5 bg-slate-900/80 hover:bg-slate-800 text-slate-200 rounded-lg border border-slate-700/80 text-xs transition">
+                                <i class="fa-solid fa-expand"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Scene Selector Panel -->
             <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col flex-1 shadow-lg">
                 <div class="flex justify-between items-center mb-3">
@@ -171,7 +213,12 @@
                 <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                     <i class="fa-solid fa-sliders text-blue-500"></i> Audio Mixer
                 </h2>
-                <button onclick="resetAudioPeaks()" class="text-xs text-slate-400 hover:text-slate-200 bg-slate-800 px-2 py-1 rounded transition">Reset Meters</button>
+                <div class="flex items-center gap-2">
+                    <button id="btnToggleAudioFilter" onclick="toggleAudioFilter()" class="text-xs px-2 py-1 rounded border border-blue-500/40 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition">
+                        Filter Silent Tracks
+                    </button>
+                    <button onclick="resetAudioPeaks()" class="text-xs text-slate-400 hover:text-slate-200 bg-slate-800 px-2 py-1 rounded transition">Reset</button>
+                </div>
             </div>
 
             <div id="audioMixerContainer" class="flex-1 space-y-4 overflow-y-auto pr-1">
@@ -296,6 +343,35 @@
         // Real OBS WebSocket Instance
         const obs = new OBSWebSocket();
 
+        // Audio Input Kinds/Types known to carry sound
+        const AUDIO_INPUT_KINDS = [
+            'wasapi_input_capture',       // Audio Input Capture (Microphone)
+            'wasapi_output_capture',      // Audio Output Capture (Desktop Audio)
+            'wasapi_process_output_capture', // Application Audio Capture
+            'pulse_input_capture',        // Linux Mic
+            'pulse_output_capture',       // Linux Audio Output
+            'coreaudio_input_capture',    // macOS Audio Input
+            'coreaudio_output_capture',   // macOS Audio Output
+            'alsa_input_capture',         // Linux ALSA
+            'dshow_input',                // Video Capture Devices (Webcams/Capture Cards)
+            'ffmpeg_source',              // Media Source
+            'vlc_source',                 // VLC Video Source
+            'browser_source'              // Browser Source (if configured for audio)
+        ];
+
+        // Non-audio source types to explicitly filter out
+        const NON_AUDIO_KINDS = [
+            'image_source',
+            'color_source',
+            'text_ft2_source',
+            'text_gdiplus',
+            'text_gdiplus_v2',
+            'slideshow',
+            'monitor_capture',
+            'window_capture',
+            'game_capture'
+        ];
+
         // Application State
         const obsState = {
             isConnected: false,
@@ -306,7 +382,12 @@
             scenes: [],
             sources: {},
             audioInputs: [],
-            statsInterval: null
+            filterSilentSources: true,
+            statsInterval: null,
+            previewInterval: null,
+            isPreviewActive: true,
+            previewFpsCounter: 0,
+            previewFpsTimer: null
         };
 
         // Initialize Web App
@@ -322,7 +403,10 @@
             logMessage(`Connecting to ${url}...`);
 
             try {
-                const { obsWebSocketVersion, negotiatedRpcVersion } = await obs.connect(url, password || undefined);
+                // Subscribe to InputVolumeMeters event category for real-time sound detection
+                const { obsWebSocketVersion, negotiatedRpcVersion } = await obs.connect(url, password || undefined, {
+                    eventSubscriptions: (1 << 0) | (1 << 16) // General | InputVolumeMeters
+                });
                 obsState.isConnected = true;
                 
                 updateConnectionUI(true, host, port);
@@ -331,6 +415,7 @@
                 // Initial fetch of OBS state
                 await refreshOBSState();
                 startStatsPolling();
+                startPreviewLoop();
 
             } catch (error) {
                 obsState.isConnected = false;
@@ -344,6 +429,8 @@
             const badge = document.getElementById('connectionBadge');
             const label = document.getElementById('wsServerLabel');
             const banner = document.getElementById('connectBanner');
+            const previewImg = document.getElementById('streamPreviewImg');
+            const placeholder = document.getElementById('previewPlaceholder');
 
             if (connected) {
                 badge.className = "text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-normal border border-emerald-500/30";
@@ -355,6 +442,11 @@
                 badge.innerText = "Disconnected";
                 label.innerText = `WebSocket v5.x • Disconnected`;
                 banner.classList.remove('hidden');
+                
+                // Hide preview screen on disconnect
+                if (previewImg) previewImg.classList.add('hidden');
+                if (placeholder) placeholder.classList.remove('hidden');
+                stopPreviewLoop();
             }
         }
 
@@ -435,11 +527,121 @@
                 }
             });
 
+            // Live Real-Time Audio Level Metering (detects produced sound)
+            obs.on('InputVolumeMeters', data => {
+                if (!data.inputs || !Array.isArray(data.inputs)) return;
+
+                data.inputs.forEach(inputMeter => {
+                    const idx = obsState.audioInputs.findIndex(i => i.name === inputMeter.inputName);
+                    if (idx !== -1) {
+                        const meterElem = document.getElementById(`meter-${idx}`);
+                        const soundBadge = document.getElementById(`sound-badge-${idx}`);
+                        
+                        // Calculate peak audio volume from channels in dB
+                        let maxMul = 0;
+                        if (inputMeter.inputLevelsMul && inputMeter.inputLevelsMul.length > 0) {
+                            inputMeter.inputLevelsMul.forEach(channel => {
+                                // Channel format: [mul_peak, mul_rms, mul_input_peak]
+                                if (channel[0] > maxMul) maxMul = channel[0];
+                            });
+                        }
+
+                        // Convert multiplier level to percentage (0 - 100%)
+                        const levelPercent = Math.min(100, Math.max(0, maxMul * 100));
+
+                        if (meterElem) {
+                            meterElem.style.width = `${levelPercent}%`;
+                        }
+
+                        // Check if active audio level exceeds audible threshold (> -50dB equivalent ~ > 0.3% level)
+                        const isProducingSound = levelPercent > 0.5 && !obsState.audioInputs[idx].muted;
+
+                        if (soundBadge) {
+                            if (isProducingSound) {
+                                soundBadge.className = 'text-[10px] px-1.5 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse';
+                                soundBadge.innerText = 'SOUND DETECTED';
+                            } else {
+                                soundBadge.className = 'text-[10px] px-1.5 py-0.5 rounded font-medium bg-slate-800 text-slate-500 border border-slate-700';
+                                soundBadge.innerText = 'NO AUDIO';
+                            }
+                        }
+                    }
+                });
+            });
+
             obs.on('ConnectionClosed', () => {
                 obsState.isConnected = false;
                 updateConnectionUI(false, '', '');
                 logMessage('OBS WebSocket connection closed.');
             });
+        }
+
+        // Live Preview Loop using OBS WebSocket GetSourceScreenshot API
+        function startPreviewLoop() {
+            stopPreviewLoop();
+            
+            // FPS Counter Interval
+            obsState.previewFpsTimer = setInterval(() => {
+                document.getElementById('previewFps').innerText = `${obsState.previewFpsCounter} FPS`;
+                obsState.previewFpsCounter = 0;
+            }, 1000);
+
+            // Frame Grab Interval (~10 FPS for responsive UI without clogging WebSocket bandwidth)
+            obsState.previewInterval = setInterval(fetchPreviewFrame, 100);
+        }
+
+        function stopPreviewLoop() {
+            if (obsState.previewInterval) clearInterval(obsState.previewInterval);
+            if (obsState.previewFpsTimer) clearInterval(obsState.previewFpsTimer);
+            obsState.previewInterval = null;
+            obsState.previewFpsTimer = null;
+        }
+
+        async function fetchPreviewFrame() {
+            if (!obsState.isConnected || !obsState.activeScene || !obsState.isPreviewActive) return;
+
+            try {
+                const response = await obs.call('GetSourceScreenshot', {
+                    sourceName: obsState.activeScene,
+                    imageFormat: 'jpeg',
+                    imageWidth: 640,
+                    imageCompressionQuality: 60
+                });
+
+                if (response && response.imageData) {
+                    const img = document.getElementById('streamPreviewImg');
+                    const placeholder = document.getElementById('previewPlaceholder');
+                    const sceneLabel = document.getElementById('previewSceneLabel');
+
+                    img.src = response.imageData;
+                    img.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                    if (sceneLabel) sceneLabel.innerText = obsState.activeScene;
+
+                    obsState.previewFpsCounter++;
+                }
+            } catch (err) {
+                // Ignore transient frame request errors
+            }
+        }
+
+        function togglePreviewState() {
+            obsState.isPreviewActive = !obsState.isPreviewActive;
+            const btn = document.getElementById('btnTogglePreview');
+            if (obsState.isPreviewActive) {
+                btn.innerHTML = `<i class="fa-solid fa-pause mr-1"></i> Pause`;
+                startPreviewLoop();
+            } else {
+                btn.innerHTML = `<i class="fa-solid fa-play mr-1"></i> Resume`;
+                stopPreviewLoop();
+            }
+        }
+
+        function fullscreenPreview() {
+            const img = document.getElementById('streamPreviewImg');
+            if (img && img.requestFullscreen) {
+                img.requestFullscreen();
+            }
         }
 
         // Fetch Sources for Active Scene
@@ -467,19 +669,28 @@
                 const audioTracks = [];
 
                 for (const input of inputsData.inputs) {
-                    // Filter for inputs that have volume/audio capabilities
+                    const kind = (input.inputKind || '').toLowerCase();
+                    
+                    // Exclude known non-audio sources (like image or text sources)
+                    if (NON_AUDIO_KINDS.some(k => kind.includes(k))) {
+                        continue;
+                    }
+
+                    // Query input volume & mute state; failure means it does not produce/support audio
                     try {
                         const vol = await obs.call('GetInputVolume', { inputName: input.inputName });
                         const mute = await obs.call('GetInputMute', { inputName: input.inputName });
                         
                         audioTracks.push({
                             name: input.inputName,
+                            kind: input.inputKind,
                             volumeDb: vol.inputVolumeDb,
                             volumeMul: vol.inputVolumeMul,
-                            muted: mute.inputMuted
+                            muted: mute.inputMuted,
+                            isAudioSource: AUDIO_INPUT_KINDS.some(k => kind.includes(k))
                         });
                     } catch (e) {
-                        // Source doesn't support audio, skip
+                        // Source doesn't support audio controls, skip
                     }
                 }
 
@@ -488,6 +699,19 @@
             } catch (err) {
                 logMessage(`Failed to fetch audio inputs: ${err.message}`);
             }
+        }
+
+        function toggleAudioFilter() {
+            obsState.filterSilentSources = !obsState.filterSilentSources;
+            const btn = document.getElementById('btnToggleAudioFilter');
+            if (obsState.filterSilentSources) {
+                btn.className = "text-xs px-2 py-1 rounded border border-blue-500/40 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition";
+                btn.innerText = "Filter Silent Tracks";
+            } else {
+                btn.className = "text-xs px-2 py-1 rounded border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 transition";
+                btn.innerText = "Show All Tracks";
+            }
+            renderAudioMixer();
         }
 
         // Render Scenes Grid
@@ -580,12 +804,18 @@
             const container = document.getElementById('audioMixerContainer');
             container.innerHTML = '';
 
-            if (obsState.audioInputs.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-500 italic">No audio tracks found.</p>`;
+            // Optionally filter non-audio sources or non-producing audio tracks
+            let tracksToRender = obsState.audioInputs;
+            if (obsState.filterSilentSources) {
+                tracksToRender = obsState.audioInputs.filter(t => t.isAudioSource);
+            }
+
+            if (tracksToRender.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 italic">No active audio sources found.</p>`;
                 return;
             }
 
-            obsState.audioInputs.forEach((track, idx) => {
+            tracksToRender.forEach((track, idx) => {
                 const dbVal = track.volumeDb !== undefined ? track.volumeDb.toFixed(1) : '-0.0';
                 const sliderVal = Math.round((track.volumeMul || 1.0) * 100);
 
@@ -598,7 +828,10 @@
                             <i class="fa-solid ${track.muted ? 'fa-volume-xmark text-red-400' : 'fa-volume-high text-slate-400'}"></i>
                             ${track.name}
                         </span>
-                        <span class="font-mono text-slate-400 text-[11px]">${track.muted ? 'MUTED' : dbVal + ' dB'}</span>
+                        <div class="flex items-center gap-2">
+                            <span id="sound-badge-${idx}" class="text-[10px] px-1.5 py-0.5 rounded font-medium bg-slate-800 text-slate-500 border border-slate-700">NO AUDIO</span>
+                            <span class="font-mono text-slate-400 text-[11px]">${track.muted ? 'MUTED' : dbVal + ' dB'}</span>
+                        </div>
                     </div>
 
                     <!-- Volume Slider -->
@@ -609,9 +842,9 @@
                         <input type="range" min="0" max="100" value="${track.muted ? 0 : sliderVal}" ${track.muted ? 'disabled' : ''} onchange="updateVolume('${escapeQuotes(track.name)}', this.value)" class="w-full">
                     </div>
 
-                    <!-- Dynamic Peak Audio Meter Indicator -->
+                    <!-- Live Real-time Audio Level Indicator -->
                     <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex">
-                        <div id="meter-${idx}" class="h-full bg-gradient-to-r from-emerald-500 via-amber-400 to-red-500 transition-all duration-75" style="width: ${track.muted ? '0%' : Math.min(100, sliderVal * 0.8) + '%'}"></div>
+                        <div id="meter-${idx}" class="h-full bg-gradient-to-r from-emerald-500 via-amber-400 to-red-500 transition-all duration-75" style="width: 0%"></div>
                     </div>
                 `;
                 container.appendChild(item);
