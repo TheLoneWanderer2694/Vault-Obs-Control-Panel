@@ -382,6 +382,13 @@
             // Placeholder for custom socket listeners
         }
 
+        // SHA-256 Helper for OBS WS v5 Authentication
+        async function sha256(str) {
+            const buffer = new TextEncoder().encode(str);
+            const hash = await crypto.subtle.digest('SHA-256', buffer);
+            return btoa(String.fromCharCode(...new Uint8Array(hash)));
+        }
+
         function connectOBS(host, port, password) {
             if (obsState.ws) {
                 try { obsState.ws.close(); } catch(e){}
@@ -393,13 +400,10 @@
                 obsState.ws = new WebSocket(url);
 
                 obsState.ws.onopen = () => {
-                    obsState.connected = true;
-                    updateBadge('obsBadge', true, 'OBS');
-                    fetchOBSSceneList();
-                    fetchOBSAudioSources();
+                    // OBS WS v5 expects OpCode 0 (Hello) from server first
                 };
 
-                obsState.ws.onmessage = (event) => {
+                obsState.ws.onmessage = async (event) => {
                     try {
                         const data = JSON.parse(event.data);
                         handleOBSMessage(data);
@@ -435,8 +439,34 @@
             obsState.ws.send(JSON.stringify(payload));
         }
 
-        function handleOBSMessage(msg) {
-            if (msg.op === 7) { // RequestResponse
+        async function handleOBSMessage(msg) {
+            // OpCode 0: Hello from OBS Server
+            if (msg.op === 0) {
+                const { obsWebSocketVersion, rpcVersion, authentication } = msg.d;
+                let identifyData = { rpcVersion: rpcVersion || 1 };
+
+                if (authentication) {
+                    const pass = obsState.savedPass || '';
+                    const secret = await sha256(pass + authentication.salt);
+                    const authResponse = await sha256(secret + authentication.challenge);
+                    identifyData.authentication = authResponse;
+                }
+
+                // Send OpCode 1: Identify
+                obsState.ws.send(JSON.stringify({
+                    op: 1,
+                    d: identifyData
+                }));
+            }
+            // OpCode 2: Identified successfully
+            else if (msg.op === 2) {
+                obsState.connected = true;
+                updateBadge('obsBadge', true, 'OBS');
+                fetchOBSSceneList();
+                fetchOBSAudioSources();
+            }
+            // OpCode 7: RequestResponse
+            else if (msg.op === 7) {
                 const d = msg.d;
                 if (d.requestType === 'GetSceneList') {
                     obsState.scenes = d.responseData.scenes || [];
@@ -450,6 +480,16 @@
                     const inputs = d.responseData.inputs || [];
                     obsState.audioInputs = inputs.filter(i => AUDIO_INPUT_KINDS.includes(i.inputKind));
                     renderOBSAudioMixer();
+                }
+            }
+            // OpCode 5: Event (e.g. CurrentProgramSceneChanged)
+            else if (msg.op === 5) {
+                if (msg.d.eventType === 'CurrentProgramSceneChanged') {
+                    obsState.currentScene = msg.d.eventData.sceneName;
+                    renderOBSScenes();
+                    fetchOBSSceneItems(obsState.currentScene);
+                } else if (msg.d.eventType === 'SceneItemEnableStateChanged') {
+                    fetchOBSSceneItems(obsState.currentScene);
                 }
             }
         }
