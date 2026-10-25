@@ -27,39 +27,168 @@
     <header class="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between shrink-0">
         <div class="flex items-center gap-3">
             <div class="flex items-center gap-2">
-            <button onclick="downloadStandaloneHTML()" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg border border-emerald-600 transition flex items-center gap-1.5 font-medium shadow" title="Download single HTML file to run locally on your desktop without browser sandbox limits">
-                <i class="fa-solid fa-download"></i> Download Local HTML
-            </button>
-            <button onclick="openInNewTab()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition flex items-center gap-1.5 font-medium" title="Launch in full browser window to bypass iframe security restrictions">
-                <i class="fa-solid fa-arrow-up-right-from-square text-blue-400"></i> Open Popout Window
-            </button>
+                <i class="fa-solid fa-sliders text-blue-500 text-base"></i>
+                <h1 class="text-sm font-bold tracking-wide text-white">Streamer Studio Control Panel</h1>
+            </div>
+            <!-- Status Indicators -->
+            <div class="flex items-center gap-2 ml-4">
+                <span id="obsBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-950/80 text-red-400 border border-red-800/50">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> OBS Disconnected
+                </span>
+                <span id="sbBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-950/80 text-red-400 border border-red-800/50">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Streamer.bot Disconnected
+                </span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
             <button onclick="toggleModal('settingsModal')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition flex items-center gap-1.5 font-medium">
                 <i class="fa-solid fa-gear text-slate-400"></i> Settings
             </button>
         </div>
     </header>
 
-    <!-- Security Warning Banner (Hidden by Default) -->
-    <div id="wsSecurityAlert" class="hidden bg-amber-950/90 border-b border-amber-800/80 text-amber-200 px-4 py-2.5 flex items-center justify-between shrink-0 shadow-lg">
-        <div class="flex items-center gap-3">
-            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-base shrink-0"></i>
-            <div>
-                <span class="font-bold text-amber-100">Local WebSocket Connection Blocked by Browser Sandbox:</span>
-                <span class="text-[11px] text-amber-300/90 ml-1">
-                    Your browser frame prevents connecting directly to <code class="bg-amber-900/60 px-1 py-0.5 rounded text-amber-200">127.0.0.1</code>. Click <strong>Download Local HTML</strong> to save &amp; open the panel directly on your desktop!
-                </span>
+    <!-- Main Workspace Grid -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 overflow-hidden min-h-0">
+        
+        <!-- Left Column: Scenes & Sources (3 Cols) -->
+        <section class="lg:col-span-3 flex flex-col gap-4 min-h-0">
+            <!-- Scenes Container -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col flex-1 min-h-0 overflow-hidden shadow-lg">
+                <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center shrink-0">
+                    <span class="font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-cubes text-blue-400"></i> Scenes
+                    </span>
+                    <span id="sceneCount" class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">0</span>
+                </div>
+                <div id="scenesList" class="p-2 overflow-y-auto flex-1 space-y-1">
+                    <div class="text-center py-8 text-slate-500">No scenes loaded</div>
+                </div>
             </div>
-        </div>
-        <div class="flex items-center gap-2">
-            <button onclick="downloadStandaloneHTML()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md font-bold text-[11px] transition shrink-0 flex items-center gap-1.5 shadow">
-                <i class="fa-solid fa-download"></i> Save .html File
-            </button>
-            <button onclick="openInNewTab()" class="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-md font-bold text-[11px] transition shrink-0 flex items-center gap-1.5 shadow">
-                <i class="fa-solid fa-external-link"></i> Launch New Tab
-            </button>
-        </div>
-    </div>
 
+            <!-- Sources Container -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col flex-1 min-h-0 overflow-hidden shadow-lg">
+                <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center shrink-0">
+                    <span class="font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-blue-400"></i> Active Scene Sources
+                    </span>
+                </div>
+                <div id="sourcesList" class="p-2 overflow-y-auto flex-1 space-y-1">
+                    <div class="text-center py-8 text-slate-500">Select a scene to inspect sources</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Middle Column: Streamer.bot Commands (6 Cols) -->
+        <section class="lg:col-span-6 flex flex-col min-h-0">
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col h-full overflow-hidden shadow-lg">
+                <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center shrink-0 flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-robot text-purple-400"></i>
+                        <span class="font-bold text-slate-200">Streamer.bot Commands</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="sbSearch" oninput="filterSBCommands()" placeholder="Search commands..." class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-purple-500">
+                        <button onclick="enableAllStreamerBotCommands()" class="px-2 py-1 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 rounded-lg text-[11px] font-medium transition flex items-center gap-1">
+                            <i class="fa-solid fa-power-off text-[10px]"></i> Enable All
+                        </button>
+                    </div>
+                </div>
+                <div id="sbGroupTabs" class="flex gap-1 p-2 bg-slate-950/40 border-b border-slate-800/60 overflow-x-auto shrink-0">
+                    <button class="px-2.5 py-1 bg-purple-600 text-white rounded-lg font-medium text-[11px] shrink-0">All</button>
+                </div>
+                <div id="sbCommandsList" class="p-3 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 content-start">
+                    <div class="col-span-2 flex flex-col items-center justify-center py-12 text-slate-500 gap-2 text-center">
+                        <i class="fa-solid fa-robot text-3xl text-slate-600"></i>
+                        <span class="font-medium">Streamer.bot Not Connected</span>
+                        <span class="text-[11px] text-slate-600 max-w-xs">Connect to your Streamer.bot WebSocket in Settings to view your configured commands and group assignments.</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Audio Mixer & TTS Panel (3 Cols) -->
+        <section class="lg:col-span-3 flex flex-col gap-4 min-h-0 overflow-y-auto">
+            <!-- Audio Mixer -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col shrink-0 shadow-lg">
+                <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center">
+                    <span class="font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-volume-high text-green-400"></i> Audio Mixer
+                    </span>
+                </div>
+                <div id="audioMixerList" class="p-3 space-y-3 max-h-60 overflow-y-auto">
+                    <div class="text-center py-4 text-slate-500">No active audio sources</div>
+                </div>
+            </div>
+
+            <!-- Text-To-Speech (TTS) Controls -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 shrink-0 shadow-lg space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span class="font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-comment-dots text-pink-400"></i> TTS Speech Synthesizer
+                    </span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="ttsToggle" onchange="toggleTTS(this.checked)" class="sr-only peer">
+                        <div class="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-pink-600"></div>
+                    </label>
+                </div>
+
+                <div class="space-y-2">
+                    <div>
+                        <label class="block text-slate-400 text-[11px] mb-1">Voice Accent / Speaker</label>
+                        <select id="ttsVoiceSelect" onchange="saveTTSSettings()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-slate-200 focus:outline-none focus:border-pink-500 text-xs">
+                            <option value="">Default OS Voice</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-slate-400 text-[11px] mb-1">Volume</label>
+                            <input type="range" id="ttsVolume" min="0" max="1" step="0.1" value="1" onchange="saveTTSSettings()" class="w-full accent-pink-500 bg-slate-800 h-1.5 rounded-lg appearance-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 text-[11px] mb-1">Speech Speed Rate</label>
+                            <input type="range" id="ttsRate" min="0.5" max="2" step="0.1" value="1" onchange="saveTTSSettings()" class="w-full accent-pink-500 bg-slate-800 h-1.5 rounded-lg appearance-none">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-1">
+                        <input type="checkbox" id="ttsReadUsername" checked onchange="saveTTSSettings()" class="rounded bg-slate-800 border-slate-700 text-pink-600 focus:ring-0">
+                        <label for="ttsReadUsername" class="text-[11px] text-slate-300">Read username before message</label>
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-400 text-[11px] mb-1">Twitch Username / Channel</label>
+                        <div class="relative">
+                            <i class="fa-brands fa-twitch absolute left-2.5 top-2 text-purple-400 text-xs"></i>
+                            <input type="text" id="twitchUsernameInput" onchange="saveTTSSettings()" placeholder="e.g. streamer_name" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-7 pr-2 py-1 text-slate-200 focus:outline-none focus:border-pink-500 text-xs">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 pt-1">
+                        <button onclick="testTTS()" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium transition flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-play text-pink-400 text-[10px]"></i> Test Voice
+                        </button>
+                        <button onclick="stopTTS()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 border border-slate-700 rounded-lg text-xs font-medium transition" title="Stop Speech Queue">
+                            <i class="fa-solid fa-stop"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Settings / Connection Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <button onclick="toggleModal('settingsModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-plug text-blue-500"></i> WebSocket Connections
+            </h3>
+            
+            <form onsubmit="saveSettings(event)" class="space-y-4">
                 <!-- OBS Settings -->
                 <div class="p-3 bg-slate-800/50 rounded-xl border border-slate-700/60 space-y-3">
                     <h4 class="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
@@ -100,14 +229,6 @@
                         <label class="block text-xs font-medium text-slate-400 mb-1">Twitch Channel Username</label>
                         <input type="text" id="sbTwitchChannel" placeholder="Your Twitch Channel Name" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-purple-500">
                     </div>
-                </div>
-
-                <!-- Sandbox Help Tip -->
-                <div class="p-3 bg-blue-950/40 border border-blue-800/50 rounded-xl text-[11px] text-blue-200/90 space-y-1">
-                    <div class="font-bold text-blue-300 flex items-center gap-1.5">
-                        <i class="fa-solid fa-circle-info"></i> Connecting Local Apps (OBS &amp; Streamer.bot)
-                    </div>
-                    <p>If connections fail while viewing this inside a browser frame, click <strong>Download Local HTML</strong> at top-right to save a file to your PC and double-click to open it natively in Chrome/Edge/Firefox.</p>
                 </div>
 
                 <div class="pt-2 flex justify-end gap-3">
@@ -164,53 +285,11 @@
             'jack_output_capture'
         ];
 
-        // Helper to launch current page in standalone tab to bypass iframe websocket restrictions
-        function openInNewTab() {
-            try {
-                const blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
-                const url = URL.createObjectURL(blob);
-                window.open(url, '_blank');
-            } catch (e) {
-                window.open(window.location.href, '_blank');
-            }
-        }
-
-        // Helper function to download the complete single-file dashboard locally
-        function downloadStandaloneHTML() {
-            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
-            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'Streamer_Control_Panel.html';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
-
-        function showSecurityAlert() {
-            const alertEl = document.getElementById('wsSecurityAlert');
-            if (alertEl) alertEl.classList.remove('hidden');
-        }
-
-        // Detect if we are running in an iframe/Canvas sandbox
-        function isInIframe() {
-            try {
-                return window.self !== window.top;
-            } catch (e) {
-                return true;
-            }
-        }
-
         // Initialize Web App
         window.onload = function() {
             setupOBSListeners();
             initTTS();
             
-            // If running inside a sandboxed iframe, show the alert banner right away
-            if (isInIframe()) {
-                showSecurityAlert();
-            }
-
             // Load Twitch Username into inputs
             if (ttsState.twitchUsername) {
                 const input = document.getElementById('twitchUsernameInput');
@@ -226,7 +305,6 @@
             document.getElementById('sbHost').value = sbState.host;
             document.getElementById('sbPort').value = sbState.port;
 
-            // Attempt connection gracefully
             connectOBS(obsState.savedHost, obsState.savedPort, obsState.savedPass);
             connectStreamerBot(sbState.host, sbState.port);
         };
@@ -254,51 +332,36 @@
             // Placeholder for custom socket listeners
         }
 
-        // SHA-256 Helper for OBS WS v5 Authentication
-        async function sha256(str) {
-            const buffer = new TextEncoder().encode(str);
-            const hash = await crypto.subtle.digest('SHA-256', buffer);
-            return btoa(String.fromCharCode(...new Uint8Array(hash)));
-        }
-
         function connectOBS(host, port, password) {
             if (obsState.ws) {
                 try { obsState.ws.close(); } catch(e){}
             }
 
             const url = `ws://${host}:${port}`;
-            
-            try {
-                obsState.ws = new WebSocket(url);
+            obsState.ws = new WebSocket(url);
 
-                obsState.ws.onopen = () => {
-                    // OBS WS v5 expects OpCode 0 (Hello) from server first
-                };
+            obsState.ws.onopen = () => {
+                obsState.connected = true;
+                updateBadge('obsBadge', true, 'OBS');
+                fetchOBSSceneList();
+                fetchOBSAudioSources();
+            };
 
-                obsState.ws.onmessage = async (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        handleOBSMessage(data);
-                    } catch(e) { console.error('Error parsing OBS WS frame', e); }
-                };
+            obsState.ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleOBSMessage(data);
+                } catch(e) { console.error('Error parsing OBS WS frame', e); }
+            };
 
-                obsState.ws.onclose = () => {
-                    obsState.connected = false;
-                    updateBadge('obsBadge', false, 'OBS');
-                };
-
-                obsState.ws.onerror = (err) => {
-                    console.warn("OBS WS Connection Error (likely blocked by iframe/sandbox rules)");
-                    obsState.connected = false;
-                    updateBadge('obsBadge', false, 'OBS');
-                    showSecurityAlert();
-                };
-            } catch (err) {
-                console.warn("OBS Connection Exception caught:", err);
+            obsState.ws.onclose = () => {
                 obsState.connected = false;
                 updateBadge('obsBadge', false, 'OBS');
-                showSecurityAlert();
-            }
+            };
+
+            obsState.ws.onerror = (err) => {
+                console.error("OBS WS Error:", err);
+            };
         }
 
         function sendOBSRequest(requestType, requestData = {}) {
@@ -311,34 +374,8 @@
             obsState.ws.send(JSON.stringify(payload));
         }
 
-        async function handleOBSMessage(msg) {
-            // OpCode 0: Hello from OBS Server
-            if (msg.op === 0) {
-                const { obsWebSocketVersion, rpcVersion, authentication } = msg.d;
-                let identifyData = { rpcVersion: rpcVersion || 1 };
-
-                if (authentication) {
-                    const pass = obsState.savedPass || '';
-                    const secret = await sha256(pass + authentication.salt);
-                    const authResponse = await sha256(secret + authentication.challenge);
-                    identifyData.authentication = authResponse;
-                }
-
-                // Send OpCode 1: Identify
-                obsState.ws.send(JSON.stringify({
-                    op: 1,
-                    d: identifyData
-                }));
-            }
-            // OpCode 2: Identified successfully
-            else if (msg.op === 2) {
-                obsState.connected = true;
-                updateBadge('obsBadge', true, 'OBS');
-                fetchOBSSceneList();
-                fetchOBSAudioSources();
-            }
-            // OpCode 7: RequestResponse
-            else if (msg.op === 7) {
+        function handleOBSMessage(msg) {
+            if (msg.op === 7) { // RequestResponse
                 const d = msg.d;
                 if (d.requestType === 'GetSceneList') {
                     obsState.scenes = d.responseData.scenes || [];
@@ -352,16 +389,6 @@
                     const inputs = d.responseData.inputs || [];
                     obsState.audioInputs = inputs.filter(i => AUDIO_INPUT_KINDS.includes(i.inputKind));
                     renderOBSAudioMixer();
-                }
-            }
-            // OpCode 5: Event (e.g. CurrentProgramSceneChanged)
-            else if (msg.op === 5) {
-                if (msg.d.eventType === 'CurrentProgramSceneChanged') {
-                    obsState.currentScene = msg.d.eventData.sceneName;
-                    renderOBSScenes();
-                    fetchOBSSceneItems(obsState.currentScene);
-                } else if (msg.d.eventType === 'SceneItemEnableStateChanged') {
-                    fetchOBSSceneItems(obsState.currentScene);
                 }
             }
         }
@@ -464,62 +491,47 @@
             }
 
             const url = `ws://${host}:${port}`;
-            
-            try {
-                sbState.ws = new WebSocket(url);
+            sbState.ws = new WebSocket(url);
 
-                sbState.ws.onopen = () => {
-                    sbState.connected = true;
-                    updateBadge('sbBadge', true, 'Streamer.bot');
-                    
-                    // Subscribe to events including Twitch chat
-                    sbState.ws.send(JSON.stringify({
-                        request: "Subscribe",
-                        id: "subscribe_events",
-                        events: {
-                            Twitch: ["ChatMessage"],
-                            YouTube: ["Message"]
-                        }
-                    }));
+            sbState.ws.onopen = () => {
+                sbState.connected = true;
+                updateBadge('sbBadge', true, 'Streamer.bot');
+                
+                // Subscribe to events including Twitch chat
+                sbState.ws.send(JSON.stringify({
+                    request: "Subscribe",
+                    id: "subscribe_events",
+                    events: {
+                        Twitch: ["ChatMessage"],
+                        YouTube: ["Message"]
+                    }
+                }));
 
-                    // Fetch commands
-                    sbState.ws.send(JSON.stringify({
-                        request: "GetCommands",
-                        id: "get_commands"
-                    }));
-                };
+                // Fetch commands
+                sbState.ws.send(JSON.stringify({
+                    request: "GetCommands",
+                    id: "get_commands"
+                }));
+            };
 
-                sbState.ws.onmessage = (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        if (data.id === "get_commands" && data.commands) {
-                            sbState.commands = data.commands;
-                            renderStreamerBotCommands();
-                        } else if (data.event && (data.event.type === "ChatMessage" || data.event.type === "Message")) {
-                            const user = data.data.message.displayName || data.data.message.username || "User";
-                            const text = data.data.message.message;
-                            handleIncomingChatMessage(user, text);
-                        }
-                    } catch(e) { console.error('Error in Streamer.bot frame', e); }
-                };
+            sbState.ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.id === "get_commands" && data.commands) {
+                        sbState.commands = data.commands;
+                        renderStreamerBotCommands();
+                    } else if (data.event && (data.event.type === "ChatMessage" || data.event.type === "Message")) {
+                        const user = data.data.message.displayName || data.data.message.username || "User";
+                        const text = data.data.message.message;
+                        handleIncomingChatMessage(user, text);
+                    }
+                } catch(e) { console.error('Error in Streamer.bot frame', e); }
+            };
 
-                sbState.ws.onclose = () => {
-                    sbState.connected = false;
-                    updateBadge('sbBadge', false, 'Streamer.bot');
-                };
-
-                sbState.ws.onerror = (err) => {
-                    console.warn("Streamer.bot WS Connection Error (likely blocked by iframe/sandbox rules)");
-                    sbState.connected = false;
-                    updateBadge('sbBadge', false, 'Streamer.bot');
-                    showSecurityAlert();
-                };
-            } catch (err) {
-                console.warn("Streamer.bot Connection Exception caught:", err);
+            sbState.ws.onclose = () => {
                 sbState.connected = false;
                 updateBadge('sbBadge', false, 'Streamer.bot');
-                showSecurityAlert();
-            }
+            };
         }
 
         function renderStreamerBotCommands() {
