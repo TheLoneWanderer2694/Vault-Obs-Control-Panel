@@ -30,7 +30,7 @@
                 <i class="fa-solid fa-sliders text-blue-500 text-base"></i>
                 <h1 class="text-sm font-bold tracking-wide text-white">Streamer Studio Control Panel</h1>
             </div>
-            <!-- Status Indicators -->
+            <!-- Connection Status Badges -->
             <div class="flex items-center gap-2 ml-4">
                 <span id="obsBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-950/80 text-red-400 border border-red-800/50">
                     <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> OBS Disconnected
@@ -42,11 +42,35 @@
         </div>
 
         <div class="flex items-center gap-2">
+            <button onclick="downloadLocalFile()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow transition flex items-center gap-1.5">
+                <i class="fa-solid fa-download"></i> Download Local HTML
+            </button>
+            <button onclick="openStandaloneWindow()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition flex items-center gap-1.5 font-medium">
+                <i class="fa-solid fa-arrow-up-right-from-square text-slate-400"></i> Popout Window
+            </button>
             <button onclick="toggleModal('settingsModal')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition flex items-center gap-1.5 font-medium">
                 <i class="fa-solid fa-gear text-slate-400"></i> Settings
             </button>
         </div>
     </header>
+
+    <!-- Sandbox Restricted Warning Banner (Revealed if browser restricts localhost WebSockets) -->
+    <div id="sandboxWarningBanner" class="hidden bg-amber-950/90 border-b border-amber-800/80 px-4 py-2 shrink-0">
+        <div class="flex items-center justify-between text-amber-200 text-xs">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-amber-400 text-sm"></i>
+                <span><strong>Sandbox Restricted:</strong> Browsers restrict embedded preview windows from connecting to local ports (127.0.0.1:4455 / 127.0.0.1:8080). Download the file or pop it out to connect to OBS &amp; Streamer.bot locally.</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button onclick="downloadLocalFile()" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded text-[11px] transition">
+                    <i class="fa-solid fa-download"></i> Save .html File
+                </button>
+                <button onclick="document.getElementById('sandboxWarningBanner').classList.add('hidden')" class="text-amber-400 hover:text-amber-100 px-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Main Workspace Grid -->
     <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 overflow-hidden min-h-0">
@@ -66,7 +90,7 @@
                 </div>
             </div>
 
-            <!-- Sources Container -->
+            <!-- Active Scene Sources Container -->
             <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col flex-1 min-h-0 overflow-hidden shadow-lg">
                 <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center shrink-0">
                     <span class="font-bold text-slate-200 flex items-center gap-2">
@@ -89,7 +113,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <input type="text" id="sbSearch" oninput="filterSBCommands()" placeholder="Search commands..." class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-purple-500">
-                        <button onclick="enableAllStreamerBotCommands()" class="px-2 py-1 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 rounded-lg text-[11px] font-medium transition flex items-center gap-1">
+                        <button onclick="enableAllStreamerBotCommands()" class="px-2.5 py-1 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 rounded-lg text-[11px] font-medium transition flex items-center gap-1">
                             <i class="fa-solid fa-power-off text-[10px]"></i> Enable All
                         </button>
                     </div>
@@ -101,7 +125,7 @@
                     <div class="col-span-2 flex flex-col items-center justify-center py-12 text-slate-500 gap-2 text-center">
                         <i class="fa-solid fa-robot text-3xl text-slate-600"></i>
                         <span class="font-medium">Streamer.bot Not Connected</span>
-                        <span class="text-[11px] text-slate-600 max-w-xs">Connect to your Streamer.bot WebSocket in Settings to view your configured commands and group assignments.</span>
+                        <span class="text-[11px] text-slate-600 max-w-xs">Connect to your Streamer.bot WebSocket in Settings to view configured commands and group assignments.</span>
                     </div>
                 </div>
             </div>
@@ -121,7 +145,7 @@
                 </div>
             </div>
 
-            <!-- Text-To-Speech (TTS) Controls -->
+            <!-- Text-To-Speech (TTS) Speech Synthesizer -->
             <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 shrink-0 shadow-lg space-y-3">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                     <span class="font-bold text-slate-200 flex items-center gap-2">
@@ -231,6 +255,11 @@
                     </div>
                 </div>
 
+                <div class="p-3 bg-amber-950/40 rounded-xl border border-amber-800/50 text-[11px] text-amber-200/90 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-amber-400 mr-1"></i>
+                    <strong>Note for local connections:</strong> If running inside an iframe preview, click <strong>"Download Local HTML"</strong> to run directly from your machine. Web browsers allow unencrypted local WebSocket connections (`ws://127.0.0.1`) when opened as local files or standard tabs.
+                </div>
+
                 <div class="pt-2 flex justify-end gap-3">
                     <button type="button" onclick="toggleModal('settingsModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold text-white">Save &amp; Reconnect</button>
@@ -285,9 +314,22 @@
             'jack_output_capture'
         ];
 
+        // Detect restricted iframe sandbox
+        function checkSandboxRestriction() {
+            try {
+                if (window.self !== window.top) {
+                    const banner = document.getElementById('sandboxWarningBanner');
+                    if (banner) banner.classList.remove('hidden');
+                }
+            } catch (e) {
+                const banner = document.getElementById('sandboxWarningBanner');
+                if (banner) banner.classList.remove('hidden');
+            }
+        }
+
         // Initialize Web App
         window.onload = function() {
-            setupOBSListeners();
+            checkSandboxRestriction();
             initTTS();
             
             // Load Twitch Username into inputs
@@ -298,7 +340,7 @@
                 if (modalInput) modalInput.value = ttsState.twitchUsername;
             }
 
-            // Populate forms
+            // Populate settings forms
             document.getElementById('wsHost').value = obsState.savedHost;
             document.getElementById('wsPort').value = obsState.savedPort;
             document.getElementById('wsPass').value = obsState.savedPass;
@@ -308,6 +350,27 @@
             connectOBS(obsState.savedHost, obsState.savedPort, obsState.savedPass);
             connectStreamerBot(sbState.host, sbState.port);
         };
+
+        // Download full single-file code to run locally without sandbox rules
+        function downloadLocalFile() {
+            const blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Streamer_Control_Panel.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function openStandaloneWindow() {
+            const newWin = window.open('about:blank', '_blank');
+            if (newWin) {
+                newWin.document.write(document.documentElement.outerHTML);
+                newWin.document.close();
+            }
+        }
 
         // UI Utility Functions
         function toggleModal(id) {
@@ -328,29 +391,29 @@
         }
 
         // --- OBS WebSocket v5 Integration ---
-        function setupOBSListeners() {
-            // Placeholder for custom socket listeners
-        }
-
         function connectOBS(host, port, password) {
             if (obsState.ws) {
                 try { obsState.ws.close(); } catch(e){}
             }
 
             const url = `ws://${host}:${port}`;
-            obsState.ws = new WebSocket(url);
+            try {
+                obsState.ws = new WebSocket(url);
+            } catch (err) {
+                console.warn("OBS WebSocket construction blocked:", err);
+                const banner = document.getElementById('sandboxWarningBanner');
+                if (banner) banner.classList.remove('hidden');
+                return;
+            }
 
             obsState.ws.onopen = () => {
-                obsState.connected = true;
-                updateBadge('obsBadge', true, 'OBS');
-                fetchOBSSceneList();
-                fetchOBSAudioSources();
+                // OBS v5 protocol handshake will complete upon receiving OpCode 0 (Hello)
             };
 
             obsState.ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    handleOBSMessage(data);
+                    handleOBSMessage(data, password);
                 } catch(e) { console.error('Error parsing OBS WS frame', e); }
             };
 
@@ -360,22 +423,31 @@
             };
 
             obsState.ws.onerror = (err) => {
-                console.error("OBS WS Error:", err);
+                console.warn("OBS WS Connection Error:", err);
+                obsState.connected = false;
+                updateBadge('obsBadge', false, 'OBS');
             };
         }
 
-        function sendOBSRequest(requestType, requestData = {}) {
-            if (!obsState.ws || obsState.ws.readyState !== WebSocket.OPEN) return;
-            const requestId = "req_" + Date.now() + "_" + Math.floor(Math.random()*1000);
-            const payload = {
-                op: 6,
-                d: { requestType, requestId, requestData }
-            };
-            obsState.ws.send(JSON.stringify(payload));
-        }
-
-        function handleOBSMessage(msg) {
-            if (msg.op === 7) { // RequestResponse
+        async function handleOBSMessage(msg, password) {
+            // OpCode 0: Hello -> Respond with OpCode 1: Identify
+            if (msg.op === 0) {
+                const identifyPayload = { op: 1, d: { rpcVersion: 1 } };
+                if (msg.d.authentication && password) {
+                    const secret = await generateOBSAuthHash(password, msg.d.authentication.salt, msg.d.authentication.challenge);
+                    identifyPayload.d.authentication = secret;
+                }
+                obsState.ws.send(JSON.stringify(identifyPayload));
+            } 
+            // OpCode 2: Identified -> Connection established
+            else if (msg.op === 2) {
+                obsState.connected = true;
+                updateBadge('obsBadge', true, 'OBS');
+                fetchOBSSceneList();
+                fetchOBSAudioSources();
+            } 
+            // OpCode 7: RequestResponse
+            else if (msg.op === 7) {
                 const d = msg.d;
                 if (d.requestType === 'GetSceneList') {
                     obsState.scenes = d.responseData.scenes || [];
@@ -391,6 +463,35 @@
                     renderOBSAudioMixer();
                 }
             }
+            // OpCode 5: Event
+            else if (msg.op === 5) {
+                if (msg.d.eventType === 'CurrentProgramSceneChanged') {
+                    obsState.currentScene = msg.d.eventData.sceneName;
+                    renderOBSScenes();
+                    fetchOBSSceneItems(obsState.currentScene);
+                }
+            }
+        }
+
+        async function generateOBSAuthHash(password, salt, challenge) {
+            const encoder = new TextEncoder();
+            const passBuffer = encoder.encode(password + salt);
+            const passHash = await crypto.subtle.digest('SHA-256', passBuffer);
+            const passHashBase64 = btoa(String.fromCharCode(...new Uint8Array(passHash)));
+
+            const secretBuffer = encoder.encode(passHashBase64 + challenge);
+            const secretHash = await crypto.subtle.digest('SHA-256', secretBuffer);
+            return btoa(String.fromCharCode(...new Uint8Array(secretHash)));
+        }
+
+        function sendOBSRequest(requestType, requestData = {}) {
+            if (!obsState.ws || obsState.ws.readyState !== WebSocket.OPEN) return;
+            const requestId = "req_" + Date.now() + "_" + Math.floor(Math.random()*1000);
+            const payload = {
+                op: 6,
+                d: { requestType, requestId, requestData }
+            };
+            obsState.ws.send(JSON.stringify(payload));
         }
 
         function fetchOBSSceneList() {
@@ -436,8 +537,9 @@
 
             list.innerHTML = obsState.scenes.map(s => {
                 const isActive = s.sceneName === obsState.currentScene;
+                const safeName = s.sceneName.replace(/'/g, "\\'");
                 return `
-                    <button onclick="selectOBSScene('${s.sceneName.replace(/'/g, "\\'")}')" class="w-full text-left px-3 py-2 rounded-lg transition flex items-center justify-between ${isActive ? 'bg-blue-600/30 border border-blue-500/50 text-white font-semibold' : 'bg-slate-800/40 hover:bg-slate-800 text-slate-300'}">
+                    <button onclick="selectOBSScene('${safeName}')" class="w-full text-left px-3 py-2 rounded-lg transition flex items-center justify-between ${isActive ? 'bg-blue-600/30 border border-blue-500/50 text-white font-semibold' : 'bg-slate-800/40 hover:bg-slate-800 text-slate-300'}">
                         <span class="truncate">${s.sceneName}</span>
                         ${isActive ? '<i class="fa-solid fa-circle text-[8px] text-blue-400"></i>' : ''}
                     </button>
@@ -491,13 +593,20 @@
             }
 
             const url = `ws://${host}:${port}`;
-            sbState.ws = new WebSocket(url);
+            try {
+                sbState.ws = new WebSocket(url);
+            } catch (err) {
+                console.warn("Streamer.bot WebSocket construction blocked:", err);
+                const banner = document.getElementById('sandboxWarningBanner');
+                if (banner) banner.classList.remove('hidden');
+                return;
+            }
 
             sbState.ws.onopen = () => {
                 sbState.connected = true;
                 updateBadge('sbBadge', true, 'Streamer.bot');
                 
-                // Subscribe to events including Twitch chat
+                // Subscribe to chat events
                 sbState.ws.send(JSON.stringify({
                     request: "Subscribe",
                     id: "subscribe_events",
@@ -525,10 +634,16 @@
                         const text = data.data.message.message;
                         handleIncomingChatMessage(user, text);
                     }
-                } catch(e) { console.error('Error in Streamer.bot frame', e); }
+                } catch(e) { console.error('Error handling Streamer.bot frame', e); }
             };
 
             sbState.ws.onclose = () => {
+                sbState.connected = false;
+                updateBadge('sbBadge', false, 'Streamer.bot');
+            };
+
+            sbState.ws.onerror = (err) => {
+                console.warn("Streamer.bot Connection Error:", err);
                 sbState.connected = false;
                 updateBadge('sbBadge', false, 'Streamer.bot');
             };
@@ -663,7 +778,7 @@
         function handleIncomingChatMessage(username, message) {
             if (!ttsState.enabled) return;
 
-            // Ignore commands starting with '!'
+            // Ignore bot commands starting with '!'
             if (message.trim().startsWith('!')) return;
 
             const speakPayload = ttsState.readUsername 
