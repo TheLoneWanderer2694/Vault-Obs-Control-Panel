@@ -14,7 +14,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        /* Custom scrollbar styling */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #0f172a; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
@@ -45,6 +44,9 @@
             <button onclick="downloadLocalFile()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow transition flex items-center gap-1.5">
                 <i class="fa-solid fa-download"></i> Download Local HTML
             </button>
+            <button onclick="retryWebSockets()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow transition flex items-center gap-1.5">
+                <i class="fa-solid fa-rotate text-xs"></i> Reconnect WebSockets
+            </button>
             <button onclick="toggleSimulatedMode()" id="demoModeBtn" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg shadow transition flex items-center gap-1.5">
                 <i class="fa-solid fa-flask"></i> Simulated Demo Mode
             </button>
@@ -57,18 +59,18 @@
         </div>
     </header>
 
-    <!-- Sandbox Restricted Warning Banner (Revealed if browser restricts localhost WebSockets) -->
+    <!-- Sandbox Restricted Warning Banner -->
     <div id="sandboxWarningBanner" class="bg-amber-950/90 border-b border-amber-800/80 px-4 py-2 shrink-0">
         <div class="flex items-center justify-between text-amber-200 text-xs">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-triangle-exclamation text-amber-400 text-sm"></i>
-                <span><strong>Browser Connection Security Notice:</strong> Modern browsers block web pages from connecting directly to local software (<code class="bg-amber-900/60 px-1 py-0.5 rounded text-amber-300">127.0.0.1:4455</code>) due to security policies. Use <strong>"Download Local HTML"</strong> or turn on <strong>"Simulated Demo Mode"</strong>.</span>
+                <span><strong>WebSocket Connection Guide:</strong> Browsers block embedded web previews from connecting to local <code class="bg-amber-900/60 px-1 py-0.5 rounded text-amber-300">ws://127.0.0.1</code> due to mixed-content/security policies. Click <strong>"Download Local HTML"</strong> and open it directly, or click <strong>"Popout Window"</strong> to allow direct WebSocket connections to OBS &amp; Streamer.bot!</span>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-                <button onclick="toggleSimulatedMode()" class="px-2.5 py-1 bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold rounded text-[11px] transition">
-                    Enable Demo Mode
+                <button onclick="retryWebSockets()" class="px-2.5 py-1 bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold rounded text-[11px] transition">
+                    Retry WS
                 </button>
-                <button onclick="downloadLocalFile()" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded text-[11px] transition">
+                <button onclick="downloadLocalFile()" class="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded text-[11px] transition">
                     <i class="fa-solid fa-download"></i> Save .html File
                 </button>
             </div>
@@ -207,40 +209,59 @@
 
     <!-- Settings / Connection Modal -->
     <div id="settingsModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onclick="toggleModal('settingsModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
             <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                <i class="fa-solid fa-plug text-blue-500"></i> WebSocket Connections
+                <i class="fa-solid fa-plug text-blue-500"></i> Connection Settings
             </h3>
             
             <form onsubmit="saveSettings(event)" class="space-y-4">
-                <!-- OBS Settings -->
+                <!-- OBS Connection Options -->
                 <div class="p-3 bg-slate-800/50 rounded-xl border border-slate-700/60 space-y-3">
-                    <h4 class="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-video"></i> OBS WebSocket (v5)
-                    </h4>
-                    <div class="grid grid-cols-3 gap-2">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Protocol</label>
-                            <select id="wsProtocol" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
-                                <option value="ws://">ws:// (Unencrypted - Local)</option>
-                                <option value="wss://">wss:// (Secure Tunnel)</option>
-                            </select>
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-video"></i> OBS Connection Method
+                        </h4>
+                        <select id="obsConnMethod" onchange="toggleObsConnFields()" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-blue-300 focus:outline-none">
+                            <option value="websocket">Direct WebSocket v5</option>
+                            <option value="http_bridge">HTTP REST Relay / Tunnel Bridge</option>
+                        </select>
+                    </div>
+
+                    <!-- Direct WebSocket Fields -->
+                    <div id="obsWsFields" class="space-y-3">
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Protocol</label>
+                                <select id="wsProtocol" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                                    <option value="ws://">ws:// (Unencrypted - Local)</option>
+                                    <option value="wss://">wss:// (Secure Tunnel)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Host / IP</label>
+                                <input type="text" id="wsHost" value="127.0.0.1" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Port</label>
+                                <input type="text" id="wsPort" value="4455" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                            </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Host / IP</label>
-                            <input type="text" id="wsHost" value="127.0.0.1" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Port</label>
-                            <input type="text" id="wsPort" value="4455" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Server Password</label>
+                            <input type="password" id="wsPass" value="" placeholder="Optional" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
                         </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Server Password</label>
-                        <input type="password" id="wsPass" value="" placeholder="Optional" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+
+                    <!-- HTTP REST Relay Fields -->
+                    <div id="obsHttpFields" class="space-y-2 hidden">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">HTTP Bridge Endpoint (Ngrok / Cloudflare Tunnel)</label>
+                            <input type="text" id="obsHttpEndpoint" placeholder="https://your-tunnel.ngrok-free.app/obs" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <p class="text-[10px] text-slate-400">Allows connecting to OBS through secure HTTPS endpoints or local HTTP relay servers without browser WebSocket mixed-content restrictions.</p>
                     </div>
                 </div>
 
@@ -272,11 +293,6 @@
                     </div>
                 </div>
 
-                <div class="p-3 bg-amber-950/40 rounded-xl border border-amber-800/50 text-[11px] text-amber-200/90 leading-relaxed space-y-1">
-                    <p><strong>Why is OBS not connecting?</strong> Browser security prevents HTTPS web pages or isolated iframe previewers from reaching local <code class="bg-amber-900/60 px-1 rounded">127.0.0.1</code> WebSockets.</p>
-                    <p><strong>Solution:</strong> Click <strong>Download Local HTML</strong> above and run the downloaded file directly in your web browser, or use <strong>Simulated Demo Mode</strong> to test all panel features immediately.</p>
-                </div>
-
                 <div class="pt-2 flex justify-end gap-3">
                     <button type="button" onclick="toggleModal('settingsModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold text-white">Save &amp; Reconnect</button>
@@ -289,6 +305,8 @@
     <script>
         // Global Application State
         let isSimulatedMode = false;
+        let obsReconnectTimer = null;
+        let sbReconnectTimer = null;
 
         const obsState = {
             ws: null,
@@ -314,162 +332,44 @@
         };
 
         // Text-to-Speech (TTS) Settings State
-        const ttsState = {
-            enabled: false,
-            voiceURI: '',
-            volume: 1.0,
-            rate: 1.0,
-            readUsername: true,
-            twitchUsername: localStorage.getItem('twitch_username') || '',
-            synth: window.speechSynthesis || null
-        };
-
-        // Audio Input Kinds Whitelist
-        const AUDIO_INPUT_KINDS = [
-            'wasapi_input_capture',
-            'wasapi_output_capture',
-            'audio_capture',
-            'ffmpeg_source',
-            'alsa_input_capture',
-            'pulse_input_capture',
-            'jack_output_capture'
-        ];
-
-        // Toggle Simulated / Demo Mode
-        function toggleSimulatedMode() {
-            isSimulatedMode = !isSimulatedMode;
-            const btn = document.getElementById('demoModeBtn');
-
+        function retryWebSockets() {
             if (isSimulatedMode) {
-                if (btn) btn.className = "px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-lg shadow transition flex items-center gap-1.5";
-                if (btn) btn.innerHTML = `<i class="fa-solid fa-flask"></i> Demo Mode ACTIVE`;
-
-                obsState.connected = true;
-                sbState.connected = true;
-                updateBadge('obsBadge', true, 'OBS (Simulated)');
-                updateBadge('sbBadge', true, 'Streamer.bot (Simulated)');
-
-                obsState.scenes = [
-                    { sceneName: 'Gameplay & Cam' },
-                    { sceneName: 'Just Chatting' },
-                    { sceneName: 'BRB / Intermission' },
-                    { sceneName: 'Starting Soon' }
-                ];
-                obsState.currentScene = 'Gameplay & Cam';
-                obsState.sources = [
-                    { sceneItemId: 1, sourceName: 'Webcam 4K', sceneItemEnabled: true },
-                    { sceneItemId: 2, sourceName: 'Game Display Capture', sceneItemEnabled: true },
-                    { sceneItemId: 3, sourceName: 'VTuber Overlay (Browser)', sceneItemEnabled: true },
-                    { sceneItemId: 4, sourceName: 'Alert Box', sceneItemEnabled: true },
-                    { sceneItemId: 5, sourceName: 'Chat Widget', sceneItemEnabled: false }
-                ];
-                obsState.audioInputs = [
-                    { inputName: 'Mic / Aux (Shure SM7B)' },
-                    { inputName: 'Desktop Audio (Discord/Game)' },
-                    { inputName: 'Spotify Music' }
-                ];
-
-                sbState.commands = [
-                    { id: 'cmd_1', name: '!so (Shoutout)', group: 'Moderation', enabled: true },
-                    { id: 'cmd_2', name: '!discord', group: 'General', enabled: true },
-                    { id: 'cmd_3', name: '!song (Current Track)', group: 'Music', enabled: true },
-                    { id: 'cmd_4', name: '!hype (Trigger Hype Train FX)', group: 'Interactions', enabled: true },
-                    { id: 'cmd_5', name: '!lurk', group: 'General', enabled: false }
-                ];
-
-                renderOBSScenes();
-                renderOBSSources();
-                renderOBSAudioMixer();
-                renderStreamerBotCommands();
-            } else {
-                if (btn) btn.className = "px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg shadow transition flex items-center gap-1.5";
-                if (btn) btn.innerHTML = `<i class="fa-solid fa-flask"></i> Simulated Demo Mode`;
-                connectOBS(obsState.savedHost, obsState.savedPort, obsState.savedPass);
-                connectStreamerBot(sbState.host, sbState.port);
+                isSimulatedMode = false;
+                const btn = document.getElementById('demoModeBtn');
+                if (btn) {
+                    btn.className = "px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg shadow transition flex items-center gap-1.5";
+                    btn.innerHTML = `<i class="fa-solid fa-flask"></i> Simulated Demo Mode`;
+                }
             }
-        }
-
-        // Initialize Web App
-        window.onload = function() {
-            initTTS();
-            
-            // Load Twitch Username into inputs
-            if (ttsState.twitchUsername) {
-                const input = document.getElementById('twitchUsernameInput');
-                const modalInput = document.getElementById('sbTwitchChannel');
-                if (input) input.value = ttsState.twitchUsername;
-                if (modalInput) modalInput.value = ttsState.twitchUsername;
-            }
-
-            // Populate settings forms
-            document.getElementById('wsProtocol').value = obsState.protocol;
-            document.getElementById('wsHost').value = obsState.savedHost;
-            document.getElementById('wsPort').value = obsState.savedPort;
-            document.getElementById('wsPass').value = obsState.savedPass;
-            document.getElementById('sbProtocol').value = sbState.protocol;
-            document.getElementById('sbHost').value = sbState.host;
-            document.getElementById('sbPort').value = sbState.port;
-
             connectOBS(obsState.savedHost, obsState.savedPort, obsState.savedPass);
             connectStreamerBot(sbState.host, sbState.port);
-        };
-
-        // Download full single-file code to run locally without sandbox rules
-        function downloadLocalFile() {
-            const blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'Streamer_Control_Panel.html';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function openStandaloneWindow() {
-            const newWin = window.open('about:blank', '_blank');
-            if (newWin) {
-                newWin.document.write(document.documentElement.outerHTML);
-                newWin.document.close();
-            }
-        }
-
-        // UI Utility Functions
-        function toggleModal(id) {
-            const modal = document.getElementById(id);
-            if (modal) modal.classList.toggle('hidden');
-        }
-
-        function updateBadge(id, connected, label) {
-            const el = document.getElementById(id);
-            if (!el) return;
-            if (connected) {
-                el.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/50";
-                el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> ${label} Connected`;
-            } else {
-                el.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-950/80 text-red-400 border border-red-800/50";
-                el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> ${label} Disconnected`;
-            }
         }
 
         // --- OBS WebSocket v5 Integration ---
         function connectOBS(host, port, password) {
             if (isSimulatedMode) return;
+            if (obsReconnectTimer) clearTimeout(obsReconnectTimer);
             if (obsState.ws) {
-                try { obsState.ws.close(); } catch(e){}
+                try { 
+                    obsState.ws.onclose = null;
+                    obsState.ws.onerror = null;
+                    obsState.ws.close(); 
+                } catch(e){}
             }
 
             const url = `${obsState.protocol}${host}:${port}`;
+            updateBadge('obsBadge', false, 'OBS (Connecting...)');
+            
             try {
                 obsState.ws = new WebSocket(url);
             } catch (err) {
-                console.warn("OBS WebSocket construction blocked:", err);
+                console.warn("OBS WebSocket construction error:", err);
+                updateBadge('obsBadge', false, 'OBS Blocked');
                 return;
             }
 
             obsState.ws.onopen = () => {
-                // OBS v5 protocol handshake will complete upon receiving OpCode 0 (Hello)
+                console.log("OBS WebSocket connected to:", url);
             };
 
             obsState.ws.onmessage = (event) => {
@@ -482,12 +382,17 @@
             obsState.ws.onclose = () => {
                 obsState.connected = false;
                 updateBadge('obsBadge', false, 'OBS');
+                obsReconnectTimer = setTimeout(() => {
+                    if (!obsState.connected && !isSimulatedMode) {
+                        connectOBS(host, port, password);
+                    }
+                }, 5000);
             };
 
             obsState.ws.onerror = (err) => {
                 console.warn("OBS WS Connection Error:", err);
                 obsState.connected = false;
-                updateBadge('obsBadge', false, 'OBS');
+                updateBadge('obsBadge', false, 'OBS Error');
             };
         }
 
@@ -544,6 +449,15 @@
 
         function sendOBSRequest(requestType, requestData = {}) {
             if (isSimulatedMode) return;
+            if (obsState.method === 'http_bridge' && obsState.httpEndpoint) {
+                fetch(`${obsState.httpEndpoint}/${requestType}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                }).catch(err => console.error('HTTP Relay Request Error:', err));
+                return;
+            }
+
             if (!obsState.ws || obsState.ws.readyState !== WebSocket.OPEN) return;
             const requestId = "req_" + Date.now() + "_" + Math.floor(Math.random()*1000);
             const payload = {
@@ -655,15 +569,23 @@
         // --- Streamer.bot WebSocket Integration ---
         function connectStreamerBot(host, port) {
             if (isSimulatedMode) return;
+            if (sbReconnectTimer) clearTimeout(sbReconnectTimer);
             if (sbState.ws) {
-                try { sbState.ws.close(); } catch(e){}
+                try { 
+                    sbState.ws.onclose = null;
+                    sbState.ws.onerror = null;
+                    sbState.ws.close(); 
+                } catch(e){}
             }
 
             const url = `${sbState.protocol}${host}:${port}`;
+            updateBadge('sbBadge', false, 'Streamer.bot (Connecting...)');
+
             try {
                 sbState.ws = new WebSocket(url);
             } catch (err) {
-                console.warn("Streamer.bot WebSocket construction blocked:", err);
+                console.warn("Streamer.bot WebSocket construction error:", err);
+                updateBadge('sbBadge', false, 'Streamer.bot Blocked');
                 return;
             }
 
@@ -703,206 +625,18 @@
             sbState.ws.onclose = () => {
                 sbState.connected = false;
                 updateBadge('sbBadge', false, 'Streamer.bot');
+                sbReconnectTimer = setTimeout(() => {
+                    if (!sbState.connected && !isSimulatedMode) {
+                        connectStreamerBot(host, port);
+                    }
+                }, 5000);
             };
 
             sbState.ws.onerror = (err) => {
                 console.warn("Streamer.bot Connection Error:", err);
                 sbState.connected = false;
-                updateBadge('sbBadge', false, 'Streamer.bot');
+                updateBadge('sbBadge', false, 'Streamer.bot Error');
             };
         }
 
-        function renderStreamerBotCommands() {
-            const container = document.getElementById('sbCommandsList');
-            const tabsContainer = document.getElementById('sbGroupTabs');
-            if (!container) return;
-
-            const searchVal = (document.getElementById('sbSearch')?.value || '').toLowerCase();
-            const groups = ['All', ...new Set(sbState.commands.map(c => c.group || 'Default'))];
-
-            if (tabsContainer) {
-                tabsContainer.innerHTML = groups.map(g => `
-                    <button onclick="setSBGroup('${g}')" class="px-2.5 py-1 rounded-lg font-medium text-[11px] shrink-0 ${sbState.selectedGroup === g ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
-                        ${g}
-                    </button>
-                `).join('');
-            }
-
-            const filtered = sbState.commands.filter(c => {
-                const matchesGroup = sbState.selectedGroup === 'All' || (c.group || 'Default') === sbState.selectedGroup;
-                const matchesSearch = c.name.toLowerCase().includes(searchVal);
-                return matchesGroup && matchesSearch;
-            });
-
-            if (!filtered.length) {
-                container.innerHTML = `<div class="col-span-2 text-center py-8 text-slate-500">No matching Streamer.bot commands</div>`;
-                return;
-            }
-
-            container.innerHTML = filtered.map(c => `
-                <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-800 flex justify-between items-center gap-2">
-                    <div class="min-w-0">
-                        <div class="font-semibold text-slate-200 truncate">${c.name}</div>
-                        <div class="text-[10px] text-purple-400 font-mono">${c.group || 'Default'}</div>
-                    </div>
-                    <button onclick="toggleSBCommand('${c.id}', ${!c.enabled})" class="px-2.5 py-1 rounded-lg text-xs font-semibold transition ${c.enabled ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500 border border-slate-700'}">
-                        ${c.enabled ? 'Enabled' : 'Disabled'}
-                    </button>
-                </div>
-            `).join('');
-        }
-
-        function setSBGroup(group) {
-            sbState.selectedGroup = group;
-            renderStreamerBotCommands();
-        }
-
-        function filterSBCommands() {
-            renderStreamerBotCommands();
-        }
-
-        function toggleSBCommand(id, enable) {
-            const cmd = sbState.commands.find(c => c.id === id);
-            if (cmd) cmd.enabled = enable;
-
-            if (!isSimulatedMode && sbState.ws && sbState.ws.readyState === WebSocket.OPEN) {
-                sbState.ws.send(JSON.stringify({
-                    request: enable ? "EnableCommand" : "DisableCommand",
-                    id: "toggle_cmd",
-                    command: { id }
-                }));
-            }
-            renderStreamerBotCommands();
-        }
-
-        function enableAllStreamerBotCommands() {
-            sbState.commands.forEach(c => {
-                if (!c.enabled) toggleSBCommand(c.id, true);
-            });
-        }
-
-        // --- Text-To-Speech (TTS) Implementation ---
-        function initTTS() {
-            if (!ttsState.synth) return;
-            populateVoiceList();
-            if (speechSynthesis.onvoiceschanged !== undefined) {
-                speechSynthesis.onvoiceschanged = populateVoiceList;
-            }
-        }
-
-        function populateVoiceList() {
-            if (!ttsState.synth) return;
-            const voices = ttsState.synth.getVoices();
-            const select = document.getElementById('ttsVoiceSelect');
-            if (!select) return;
-
-            select.innerHTML = '<option value="">Default OS Voice</option>';
-            voices.forEach(voice => {
-                const opt = document.createElement('option');
-                opt.value = voice.voiceURI;
-                opt.textContent = `${voice.name} (${voice.lang})`;
-                select.appendChild(opt);
-            });
-        }
-
-        function toggleTTS(enabled) {
-            ttsState.enabled = enabled;
-        }
-
-        function saveTTSSettings() {
-            ttsState.voiceURI = document.getElementById('ttsVoiceSelect')?.value || '';
-            ttsState.volume = parseFloat(document.getElementById('ttsVolume')?.value || '1');
-            ttsState.rate = parseFloat(document.getElementById('ttsRate')?.value || '1');
-            ttsState.readUsername = document.getElementById('ttsReadUsername')?.checked ?? true;
-            
-            const userIn = document.getElementById('twitchUsernameInput')?.value.trim();
-            if (userIn !== undefined) {
-                ttsState.twitchUsername = userIn;
-                localStorage.setItem('twitch_username', userIn);
-                const modalIn = document.getElementById('sbTwitchChannel');
-                if (modalIn) modalIn.value = userIn;
-            }
-        }
-
-        function speakText(text) {
-            if (!ttsState.synth) return;
-            
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.volume = ttsState.volume;
-            utterance.rate = ttsState.rate;
-
-            if (ttsState.voiceURI) {
-                const voices = ttsState.synth.getVoices();
-                const selectedVoice = voices.find(v => v.voiceURI === ttsState.voiceURI);
-                if (selectedVoice) utterance.voice = selectedVoice;
-            }
-
-            ttsState.synth.speak(utterance);
-        }
-
-        function handleIncomingChatMessage(username, message) {
-            if (!ttsState.enabled) return;
-            if (message.trim().startsWith('!')) return;
-
-            const speakPayload = ttsState.readUsername 
-                ? `${username} says ${message}` 
-                : message;
-
-            speakText(speakPayload);
-        }
-
-        function testTTS() {
-            speakText("Text to speech audio test working successfully!");
-        }
-
-        function stopTTS() {
-            if (ttsState.synth) {
-                ttsState.synth.cancel();
-            }
-        }
-
-        function saveSettings(e) {
-            e.preventDefault();
-            const proto = document.getElementById('wsProtocol').value;
-            const host = document.getElementById('wsHost').value;
-            const port = document.getElementById('wsPort').value;
-            const pass = document.getElementById('wsPass').value;
-
-            const sbProto = document.getElementById('sbProtocol').value;
-            const sbHost = document.getElementById('sbHost').value;
-            const sbPort = document.getElementById('sbPort').value;
-            const channel = document.getElementById('sbTwitchChannel').value.trim();
-
-            obsState.protocol = proto;
-            obsState.savedHost = host;
-            obsState.savedPort = port;
-            obsState.savedPass = pass;
-            sbState.protocol = sbProto;
-            sbState.host = sbHost;
-            sbState.port = sbPort;
-
-            localStorage.setItem('obs_proto', proto);
-            localStorage.setItem('obs_host', host);
-            localStorage.setItem('obs_port', port);
-            localStorage.setItem('obs_pass', pass);
-            localStorage.setItem('sb_proto', sbProto);
-            localStorage.setItem('sb_host', sbHost);
-            localStorage.setItem('sb_port', sbPort);
-
-            if (channel) {
-                ttsState.twitchUsername = channel;
-                localStorage.setItem('twitch_username', channel);
-                const userIn = document.getElementById('twitchUsernameInput');
-                if (userIn) userIn.value = channel;
-            }
-
-            toggleModal('settingsModal');
-            
-            if (!isSimulatedMode) {
-                connectOBS(host, port, pass);
-                connectStreamerBot(sbHost, sbPort);
-            }
-        }
-    </script>
-</body>
-</html>
+<!-- ... existing code -->
