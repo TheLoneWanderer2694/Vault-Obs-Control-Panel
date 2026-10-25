@@ -342,24 +342,22 @@
         // Real OBS WebSocket Instance
         let obs = new OBSWebSocket();
 
-        // Audio Input Kinds/Types known to carry sound
+        // Strict whitelist of audio input kinds that produce/capture sound
         const AUDIO_INPUT_KINDS = [
-            'wasapi_input_capture',       // Audio Input Capture (Microphone)
-            'wasapi_output_capture',      // Audio Output Capture (Desktop Audio)
-            'wasapi_process_output_capture', // Application Audio Capture
-            'pulse_input_capture',        // Linux Mic
-            'pulse_output_capture',       // Linux Audio Output
-            'coreaudio_input_capture',    // macOS Audio Input
-            'coreaudio_output_capture',   // macOS Audio Output
-            'alsa_input_capture',         // Linux ALSA
-            'dshow_input',                // Video Capture Devices
-            'ffmpeg_source',              // Media Source
-            'vlc_source',                 // VLC Video Source
-            'browser_source'              // Browser Source
+            'wasapi_input_capture',          // Microphone / Line In
+            'wasapi_output_capture',         // Desktop / Speaker Audio
+            'wasapi_process_output_capture',    // Application Audio Capture
+            'pulse_input_capture',           // Linux Mic
+            'pulse_output_capture',          // Linux Desktop Audio
+            'coreaudio_input_capture',       // macOS Mic
+            'coreaudio_output_capture',      // macOS Desktop Audio
+            'alsa_input_capture',            // Linux ALSA Audio
+            'ffmpeg_source',                 // Media / Video / Audio Files
+            'vlc_source'                     // VLC Audio Playlist
         ];
 
-        // Non-audio source types to explicitly filter out
-        const NON_AUDIO_KINDS = [
+        // Explicitly non-audio kinds or non-standard audio emitters
+        const EXCLUDE_AUDIO_KINDS = [
             'image_source',
             'color_source',
             'text_ft2_source',
@@ -368,7 +366,9 @@
             'slideshow',
             'monitor_capture',
             'window_capture',
-            'game_capture'
+            'game_capture',
+            'dshow_input',                   // Webcams (often silent unless configured with audio)
+            'browser_source'                 // Browser sources without explicit audio routing
         ];
 
         // Application State
@@ -676,8 +676,13 @@
 
                 for (const input of inputsData.inputs) {
                     const kind = (input.inputKind || '').toLowerCase();
-                    
-                    if (NON_AUDIO_KINDS.some(k => kind.includes(k))) {
+
+                    // Check if input is strictly an audio producer
+                    const isStrictAudioKind = AUDIO_INPUT_KINDS.some(k => kind.includes(k));
+                    const isExcludedKind = EXCLUDE_AUDIO_KINDS.some(k => kind.includes(k));
+
+                    // Skip non-audio kinds when strict filtering is enabled
+                    if (isExcludedKind && !isStrictAudioKind) {
                         continue;
                     }
 
@@ -691,10 +696,10 @@
                             volumeDb: vol.inputVolumeDb,
                             volumeMul: vol.inputVolumeMul,
                             muted: mute.inputMuted,
-                            isAudioSource: AUDIO_INPUT_KINDS.some(k => kind.includes(k))
+                            isAudioSource: isStrictAudioKind
                         });
                     } catch (e) {
-                        // Source doesn't support audio controls
+                        // Source doesn't support audio controls or has no audio bus
                     }
                 }
 
