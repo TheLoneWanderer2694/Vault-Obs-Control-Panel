@@ -27,21 +27,9 @@
     <header class="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between shrink-0">
         <div class="flex items-center gap-3">
             <div class="flex items-center gap-2">
-                <i class="fa-solid fa-sliders text-blue-500 text-base"></i>
-                <h1 class="text-sm font-bold tracking-wide text-white">Streamer Studio Control Panel</h1>
-            </div>
-            <!-- Status Indicators -->
-            <div class="flex items-center gap-2 ml-4">
-                <span id="obsBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-950/80 text-red-400 border border-red-800/50">
-                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> OBS Disconnected
-                </span>
-                <span id="sbBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-950/80 text-red-400 border border-red-800/50">
-                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Streamer.bot Disconnected
-                </span>
-            </div>
-        </div>
-
-        <div class="flex items-center gap-2">
+            <button onclick="downloadStandaloneHTML()" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg border border-emerald-600 transition flex items-center gap-1.5 font-medium shadow" title="Download single HTML file to run locally on your desktop without browser sandbox limits">
+                <i class="fa-solid fa-download"></i> Download Local HTML
+            </button>
             <button onclick="openInNewTab()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition flex items-center gap-1.5 font-medium" title="Launch in full browser window to bypass iframe security restrictions">
                 <i class="fa-solid fa-arrow-up-right-from-square text-blue-400"></i> Open Popout Window
             </button>
@@ -56,158 +44,22 @@
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-triangle-exclamation text-amber-400 text-base shrink-0"></i>
             <div>
-                <span class="font-bold text-amber-100">Local WebSocket Connection Blocked:</span>
+                <span class="font-bold text-amber-100">Local WebSocket Connection Blocked by Browser Sandbox:</span>
                 <span class="text-[11px] text-amber-300/90 ml-1">
-                    Your browser sandbox/iframe is preventing connections to local WebSocket ports (<code class="bg-amber-900/60 px-1 py-0.5 rounded text-amber-200">127.0.0.1</code>).
+                    Your browser frame prevents connecting directly to <code class="bg-amber-900/60 px-1 py-0.5 rounded text-amber-200">127.0.0.1</code>. Click <strong>Download Local HTML</strong> to save &amp; open the panel directly on your desktop!
                 </span>
             </div>
         </div>
-        <button onclick="openInNewTab()" class="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-md font-bold text-[11px] transition shrink-0 flex items-center gap-1.5 shadow">
-            <i class="fa-solid fa-external-link"></i> Launch in New Window
-        </button>
+        <div class="flex items-center gap-2">
+            <button onclick="downloadStandaloneHTML()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md font-bold text-[11px] transition shrink-0 flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-download"></i> Save .html File
+            </button>
+            <button onclick="openInNewTab()" class="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-md font-bold text-[11px] transition shrink-0 flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-external-link"></i> Launch New Tab
+            </button>
+        </div>
     </div>
 
-    <!-- Main Workspace Grid -->
-    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 overflow-hidden min-h-0">
-        
-        <!-- Left Column: Scenes & Sources (3 Cols) -->
-        <section class="lg:col-span-3 flex flex-col gap-4 min-h-0">
-            <!-- Scenes Container -->
-            <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col flex-1 min-h-0 overflow-hidden shadow-lg">
-                <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center shrink-0">
-                    <span class="font-bold text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-cubes text-blue-400"></i> Scenes
-                    </span>
-                    <span id="sceneCount" class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">0</span>
-                </div>
-                <div id="scenesList" class="p-2 overflow-y-auto flex-1 space-y-1">
-                    <div class="text-center py-8 text-slate-500">No scenes loaded</div>
-                </div>
-            </div>
-
-            <!-- Sources Container -->
-            <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col flex-1 min-h-0 overflow-hidden shadow-lg">
-                <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center shrink-0">
-                    <span class="font-bold text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-layer-group text-blue-400"></i> Active Scene Sources
-                    </span>
-                </div>
-                <div id="sourcesList" class="p-2 overflow-y-auto flex-1 space-y-1">
-                    <div class="text-center py-8 text-slate-500">Select a scene to inspect sources</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Middle Column: Streamer.bot Commands (6 Cols) -->
-        <section class="lg:col-span-6 flex flex-col min-h-0">
-            <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col h-full overflow-hidden shadow-lg">
-                <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center shrink-0 flex-wrap gap-2">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-robot text-purple-400"></i>
-                        <span class="font-bold text-slate-200">Streamer.bot Commands</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input type="text" id="sbSearch" oninput="filterSBCommands()" placeholder="Search commands..." class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-purple-500">
-                        <button onclick="enableAllStreamerBotCommands()" class="px-2 py-1 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 rounded-lg text-[11px] font-medium transition flex items-center gap-1">
-                            <i class="fa-solid fa-power-off text-[10px]"></i> Enable All
-                        </button>
-                    </div>
-                </div>
-                <div id="sbGroupTabs" class="flex gap-1 p-2 bg-slate-950/40 border-b border-slate-800/60 overflow-x-auto shrink-0">
-                    <button class="px-2.5 py-1 bg-purple-600 text-white rounded-lg font-medium text-[11px] shrink-0">All</button>
-                </div>
-                <div id="sbCommandsList" class="p-3 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 content-start">
-                    <div class="col-span-2 flex flex-col items-center justify-center py-12 text-slate-500 gap-2 text-center">
-                        <i class="fa-solid fa-robot text-3xl text-slate-600"></i>
-                        <span class="font-medium">Streamer.bot Not Connected</span>
-                        <span class="text-[11px] text-slate-600 max-w-xs">Connect to your Streamer.bot WebSocket in Settings or launch in Popout window to view commands.</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Right Column: Audio Mixer & TTS Panel (3 Cols) -->
-        <section class="lg:col-span-3 flex flex-col gap-4 min-h-0 overflow-y-auto">
-            <!-- Audio Mixer -->
-            <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col shrink-0 shadow-lg">
-                <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center">
-                    <span class="font-bold text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-volume-high text-green-400"></i> Audio Mixer
-                    </span>
-                </div>
-                <div id="audioMixerList" class="p-3 space-y-3 max-h-60 overflow-y-auto">
-                    <div class="text-center py-4 text-slate-500">No active audio sources</div>
-                </div>
-            </div>
-
-            <!-- Text-To-Speech (TTS) Controls -->
-            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 shrink-0 shadow-lg space-y-3">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <span class="font-bold text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-comment-dots text-pink-400"></i> TTS Speech Synthesizer
-                    </span>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="ttsToggle" onchange="toggleTTS(this.checked)" class="sr-only peer">
-                        <div class="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-pink-600"></div>
-                    </label>
-                </div>
-
-                <div class="space-y-2">
-                    <div>
-                        <label class="block text-slate-400 text-[11px] mb-1">Voice Accent / Speaker</label>
-                        <select id="ttsVoiceSelect" onchange="saveTTSSettings()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-slate-200 focus:outline-none focus:border-pink-500 text-xs">
-                            <option value="">Default OS Voice</option>
-                        </select>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-slate-400 text-[11px] mb-1">Volume</label>
-                            <input type="range" id="ttsVolume" min="0" max="1" step="0.1" value="1" onchange="saveTTSSettings()" class="w-full accent-pink-500 bg-slate-800 h-1.5 rounded-lg appearance-none">
-                        </div>
-                        <div>
-                            <label class="block text-slate-400 text-[11px] mb-1">Speech Speed Rate</label>
-                            <input type="range" id="ttsRate" min="0.5" max="2" step="0.1" value="1" onchange="saveTTSSettings()" class="w-full accent-pink-500 bg-slate-800 h-1.5 rounded-lg appearance-none">
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2 pt-1">
-                        <input type="checkbox" id="ttsReadUsername" checked onchange="saveTTSSettings()" class="rounded bg-slate-800 border-slate-700 text-pink-600 focus:ring-0">
-                        <label for="ttsReadUsername" class="text-[11px] text-slate-300">Read username before message</label>
-                    </div>
-
-                    <div>
-                        <label class="block text-slate-400 text-[11px] mb-1">Twitch Username / Channel</label>
-                        <div class="relative">
-                            <i class="fa-brands fa-twitch absolute left-2.5 top-2 text-purple-400 text-xs"></i>
-                            <input type="text" id="twitchUsernameInput" onchange="saveTTSSettings()" placeholder="e.g. streamer_name" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-7 pr-2 py-1 text-slate-200 focus:outline-none focus:border-pink-500 text-xs">
-                        </div>
-                    </div>
-
-                    <div class="flex gap-2 pt-1">
-                        <button onclick="testTTS()" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium transition flex items-center justify-center gap-1">
-                            <i class="fa-solid fa-play text-pink-400 text-[10px]"></i> Test Voice
-                        </button>
-                        <button onclick="stopTTS()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 border border-slate-700 rounded-lg text-xs font-medium transition" title="Stop Speech Queue">
-                            <i class="fa-solid fa-stop"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Settings / Connection Modal -->
-    <div id="settingsModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
-            <button onclick="toggleModal('settingsModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-            <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                <i class="fa-solid fa-plug text-blue-500"></i> WebSocket Connections
-            </h3>
-            
-            <form onsubmit="saveSettings(event)" class="space-y-4">
                 <!-- OBS Settings -->
                 <div class="p-3 bg-slate-800/50 rounded-xl border border-slate-700/60 space-y-3">
                     <h4 class="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
@@ -248,6 +100,14 @@
                         <label class="block text-xs font-medium text-slate-400 mb-1">Twitch Channel Username</label>
                         <input type="text" id="sbTwitchChannel" placeholder="Your Twitch Channel Name" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-purple-500">
                     </div>
+                </div>
+
+                <!-- Sandbox Help Tip -->
+                <div class="p-3 bg-blue-950/40 border border-blue-800/50 rounded-xl text-[11px] text-blue-200/90 space-y-1">
+                    <div class="font-bold text-blue-300 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info"></i> Connecting Local Apps (OBS &amp; Streamer.bot)
+                    </div>
+                    <p>If connections fail while viewing this inside a browser frame, click <strong>Download Local HTML</strong> at top-right to save a file to your PC and double-click to open it natively in Chrome/Edge/Firefox.</p>
                 </div>
 
                 <div class="pt-2 flex justify-end gap-3">
@@ -313,6 +173,18 @@
             } catch (e) {
                 window.open(window.location.href, '_blank');
             }
+        }
+
+        // Helper function to download the complete single-file dashboard locally
+        function downloadStandaloneHTML() {
+            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'Streamer_Control_Panel.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }
 
         function showSecurityAlert() {
