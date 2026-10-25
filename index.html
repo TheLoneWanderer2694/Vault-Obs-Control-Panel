@@ -3,310 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OBS & Streamer.bot Control Panel</title>
-    <!-- Tailwind CSS CDN -->
+    <title>OBS & Streamer.bot Studio Control Panel</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
+    <!-- Google Font (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- OBS WebSocket v5 Library -->
-    <script src="https://cdn.jsdelivr.net/npm/obs-websocket-js@5.0.3/dist/obs-ws.min.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        obs: {
-                            accent: '#2563eb',
-                            active: '#22c55e',
-                            recording: '#ef4444',
-                            streaming: '#a855f7',
-                            panel: '#0f172a',
-                            card: '#1e293b'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
     <style>
-        /* Custom scrollbar for control panels */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #334155;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #475569;
-        }
-        /* Custom slider styles */
-        input[type=range] {
-            -webkit-appearance: none;
-            background: transparent;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            background: #3b82f6;
-            cursor: pointer;
-            margin-top: -6px;
-            box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            cursor: pointer;
-            background: #334155;
-            border-radius: 2px;
-        }
+        body { font-family: 'Inter', sans-serif; }
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
     </style>
 </head>
-<body class="h-full flex flex-col font-sans select-none overflow-x-hidden">
+<body class="h-full flex flex-col overflow-hidden text-xs select-none">
 
-    <!-- Top Bar Navigation & Status -->
-    <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex flex-wrap justify-between items-center gap-4">
-        <div class="flex items-center space-x-3">
-            <div class="p-2 bg-blue-600/20 text-blue-500 rounded-lg">
-                <i class="fa-solid fa-eye text-xl"></i>
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-blue-500 text-base"></i>
+                <h1 class="text-sm font-bold tracking-wide text-white">Streamer Studio Control Panel</h1>
             </div>
-            <div>
-                <h1 class="font-bold text-lg leading-tight flex items-center gap-2">
-                    OBS &amp; Streamer.bot Web Controller
-                </h1>
-                <div class="flex items-center gap-3 text-xs text-slate-400">
-                    <span id="connectionBadge" class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-normal border border-rose-500/30">OBS: Disconnected</span>
-                    <span id="sbConnectionBadge" class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-normal border border-rose-500/30">Streamer.bot: Disconnected</span>
-                </div>
+            <!-- Status Indicators -->
+            <div class="flex items-center gap-2 ml-4">
+                <span id="obsBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-950/80 text-red-400 border border-red-800/50">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> OBS Disconnected
+                </span>
+                <span id="sbBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-950/80 text-red-400 border border-red-800/50">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Streamer.bot Disconnected
+                </span>
             </div>
         </div>
 
-        <!-- Global Status Badges & Timers -->
-        <div class="flex items-center gap-3">
-            <!-- Streaming Indicator -->
-            <div id="statusStream" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-semibold">
-                <span class="w-2.5 h-2.5 rounded-full bg-slate-500" id="dotStream"></span>
-                <span class="text-slate-400">LIVE:</span>
-                <span id="timerStream" class="font-mono text-slate-300">00:00:00</span>
-            </div>
-
-            <!-- Recording Indicator -->
-            <div id="statusRecord" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-semibold">
-                <span class="w-2.5 h-2.5 rounded-full bg-slate-500" id="dotRecord"></span>
-                <span class="text-slate-400">REC:</span>
-                <span id="timerRecord" class="font-mono text-slate-300">00:00:00</span>
-            </div>
-
-            <!-- System Info -->
-            <div class="hidden md:flex items-center gap-4 px-3 py-1.5 bg-slate-800/50 rounded-lg border border-slate-800 text-xs text-slate-400">
-                <div>FPS: <span id="valFps" class="text-slate-200 font-mono">--</span></div>
-                <div>CPU: <span id="valCpu" class="text-slate-200 font-mono">--%</span></div>
-                <div>Kbit/s: <span id="valBitrate" class="text-slate-200 font-mono">0</span></div>
-            </div>
-
-            <!-- Settings / Disconnect Modal Trigger -->
-            <button onclick="toggleModal('settingsModal')" class="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200 transition" title="WebSocket Settings">
-                <i class="fa-solid fa-gear text-lg"></i>
+        <div class="flex items-center gap-2">
+            <button onclick="openInNewTab()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition flex items-center gap-1.5 font-medium" title="Launch in full browser window to bypass iframe security restrictions">
+                <i class="fa-solid fa-arrow-up-right-from-square text-blue-400"></i> Open Popout Window
+            </button>
+            <button onclick="toggleModal('settingsModal')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition flex items-center gap-1.5 font-medium">
+                <i class="fa-solid fa-gear text-slate-400"></i> Settings
             </button>
         </div>
     </header>
 
-    <!-- Connection Banner (Shown when disconnected) -->
-    <div id="connectBanner" class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between text-xs text-amber-200">
-        <div class="flex items-center gap-2">
-            <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
-            <span>Check connections for OBS (WebSocket v5) or Streamer.bot (Default Port 8080).</span>
+    <!-- Security Warning Banner (Hidden by Default) -->
+    <div id="wsSecurityAlert" class="hidden bg-amber-950/90 border-b border-amber-800/80 text-amber-200 px-4 py-2.5 flex items-center justify-between shrink-0 shadow-lg">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-base shrink-0"></i>
+            <div>
+                <span class="font-bold text-amber-100">Local WebSocket Connection Blocked:</span>
+                <span class="text-[11px] text-amber-300/90 ml-1">
+                    Your browser sandbox/iframe is preventing connections to local WebSocket ports (<code class="bg-amber-900/60 px-1 py-0.5 rounded text-amber-200">127.0.0.1</code>).
+                </span>
+            </div>
         </div>
-        <button onclick="toggleModal('settingsModal')" class="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded transition">Configure Connections</button>
+        <button onclick="openInNewTab()" class="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-md font-bold text-[11px] transition shrink-0 flex items-center gap-1.5 shadow">
+            <i class="fa-solid fa-external-link"></i> Launch in New Window
+        </button>
     </div>
 
-    <!-- Main Grid Dashboard -->
-    <main class="flex-1 p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 max-w-[1920px] mx-auto w-full">
+    <!-- Main Workspace Grid -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 overflow-hidden min-h-0">
         
-        <!-- Left Column: Scenes & Sources (4 Cols) -->
-        <section class="lg:col-span-4 flex flex-col gap-4">
-
-            <!-- Scene Selector Panel -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col shadow-lg">
-                <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-layer-group text-blue-500"></i> Scenes
-                    </h2>
-                    <span class="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded">Active: <strong id="activeSceneText" class="text-blue-400">--</strong></span>
+        <!-- Left Column: Scenes & Sources (3 Cols) -->
+        <section class="lg:col-span-3 flex flex-col gap-4 min-h-0">
+            <!-- Scenes Container -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col flex-1 min-h-0 overflow-hidden shadow-lg">
+                <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center shrink-0">
+                    <span class="font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-cubes text-blue-400"></i> Scenes
+                    </span>
+                    <span id="sceneCount" class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">0</span>
                 </div>
-
-                <!-- Scenes Grid -->
-                <div id="scenesGrid" class="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1">
-                    <!-- Dynamic Scenes Rendered via JS -->
+                <div id="scenesList" class="p-2 overflow-y-auto flex-1 space-y-1">
+                    <div class="text-center py-8 text-slate-500">No scenes loaded</div>
                 </div>
             </div>
 
-            <!-- Scene Sources / Toggle Visibility -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col shadow-lg flex-1 min-h-[220px]">
-                <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-list-check text-blue-500"></i> Sources (Active Scene)
-                    </h2>
-                    <span class="text-xs text-slate-500">Visibility</span>
+            <!-- Sources Container -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col flex-1 min-h-0 overflow-hidden shadow-lg">
+                <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center shrink-0">
+                    <span class="font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-blue-400"></i> Active Scene Sources
+                    </span>
                 </div>
-                <div id="sourcesContainer" class="space-y-2 overflow-y-auto pr-1 flex-1">
-                    <!-- Dynamic Sources Rendered via JS -->
-                </div>
-            </div>
-
-        </section>
-
-        <!-- Streamer.bot Commands & Groups Column (5 Cols) -->
-        <section class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col shadow-lg">
-            <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
-                <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <i class="fa-solid fa-robot text-purple-400"></i> Streamer.bot Commands
-                </h2>
-                <div class="flex items-center gap-2">
-                    <span id="cmdCountBadge" class="text-xs bg-purple-500/10 border border-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">0 Commands</span>
-                    <button onclick="fetchStreamerBotCommands()" class="text-xs text-slate-400 hover:text-slate-200 bg-slate-800 px-2 py-1 rounded transition">
-                        <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh
-                    </button>
-                </div>
-            </div>
-
-            <!-- Filter Controls: Search & Group Filter -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-                <div class="relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
-                    <input type="text" id="sbSearchInput" oninput="filterStreamerBotCommands()" placeholder="Search command or trigger..." class="w-full bg-slate-800/80 border border-slate-700/80 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-purple-500">
-                </div>
-                <div>
-                    <select id="sbGroupSelect" onchange="filterStreamerBotCommands()" class="w-full bg-slate-800/80 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
-                        <option value="ALL">All Groups</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Commands & Group Cards Container -->
-            <div id="sbCommandsContainer" class="flex-1 space-y-2 overflow-y-auto pr-1 min-h-[380px]">
-                <div class="flex flex-col items-center justify-center h-full text-slate-500 py-12 gap-2 text-center">
-                    <i class="fa-solid fa-robot text-3xl text-slate-600"></i>
-                    <span class="text-xs font-medium">Streamer.bot Not Connected</span>
-                    <span class="text-[11px] text-slate-600 max-w-xs">Connect to your Streamer.bot WebSocket to view your configured commands and group assignments.</span>
+                <div id="sourcesList" class="p-2 overflow-y-auto flex-1 space-y-1">
+                    <div class="text-center py-8 text-slate-500">Select a scene to inspect sources</div>
                 </div>
             </div>
         </section>
 
-        <!-- Right Column: Audio Mixer & Quick Actions (3 Cols) -->
-        <section class="lg:col-span-3 flex flex-col gap-4">
-            
-            <!-- Audio Mixer (Compact) -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col shadow-lg h-64">
-                <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-sliders text-blue-500"></i> Audio Mixer
-                    </h2>
-                    <button id="btnToggleAudioFilter" onclick="toggleAudioFilter()" class="text-[11px] px-2 py-0.5 rounded border border-blue-500/40 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition">
-                        Audio Only
-                    </button>
+        <!-- Middle Column: Streamer.bot Commands (6 Cols) -->
+        <section class="lg:col-span-6 flex flex-col min-h-0">
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col h-full overflow-hidden shadow-lg">
+                <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center shrink-0 flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-robot text-purple-400"></i>
+                        <span class="font-bold text-slate-200">Streamer.bot Commands</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="sbSearch" oninput="filterSBCommands()" placeholder="Search commands..." class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-purple-500">
+                        <button onclick="enableAllStreamerBotCommands()" class="px-2 py-1 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 rounded-lg text-[11px] font-medium transition flex items-center gap-1">
+                            <i class="fa-solid fa-power-off text-[10px]"></i> Enable All
+                        </button>
+                    </div>
                 </div>
-
-                <div id="audioMixerContainer" class="flex-1 space-y-3 overflow-y-auto pr-1">
-                    <!-- Audio Tracks Rendered via JS -->
+                <div id="sbGroupTabs" class="flex gap-1 p-2 bg-slate-950/40 border-b border-slate-800/60 overflow-x-auto shrink-0">
+                    <button class="px-2.5 py-1 bg-purple-600 text-white rounded-lg font-medium text-[11px] shrink-0">All</button>
+                </div>
+                <div id="sbCommandsList" class="p-3 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 content-start">
+                    <div class="col-span-2 flex flex-col items-center justify-center py-12 text-slate-500 gap-2 text-center">
+                        <i class="fa-solid fa-robot text-3xl text-slate-600"></i>
+                        <span class="font-medium">Streamer.bot Not Connected</span>
+                        <span class="text-[11px] text-slate-600 max-w-xs">Connect to your Streamer.bot WebSocket in Settings or launch in Popout window to view commands.</span>
+                    </div>
                 </div>
             </div>
+        </section>
 
-            <!-- Core Output Controls -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg space-y-2">
-                <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-power-off text-blue-500"></i> Output Controls
-                </h2>
-
-                <button id="btnStream" onclick="toggleStream()" class="w-full py-2.5 px-3 rounded-lg font-bold flex items-center justify-between transition-all bg-purple-600 hover:bg-purple-500 text-white shadow">
-                    <span class="flex items-center gap-2 text-xs">
-                        <i class="fa-solid fa-tower-broadcast"></i>
-                        <span id="labelStream">Start Streaming</span>
+        <!-- Right Column: Audio Mixer & TTS Panel (3 Cols) -->
+        <section class="lg:col-span-3 flex flex-col gap-4 min-h-0 overflow-y-auto">
+            <!-- Audio Mixer -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col shrink-0 shadow-lg">
+                <div class="px-3 py-2 border-b border-slate-800 bg-slate-900 flex justify-between items-center">
+                    <span class="font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-volume-high text-green-400"></i> Audio Mixer
                     </span>
-                    <i class="fa-solid fa-chevron-right text-xs opacity-60"></i>
-                </button>
+                </div>
+                <div id="audioMixerList" class="p-3 space-y-3 max-h-60 overflow-y-auto">
+                    <div class="text-center py-4 text-slate-500">No active audio sources</div>
+                </div>
+            </div>
 
-                <button id="btnRecord" onclick="toggleRecord()" class="w-full py-2.5 px-3 rounded-lg font-bold flex items-center justify-between transition-all bg-red-600 hover:bg-red-500 text-white shadow">
-                    <span class="flex items-center gap-2 text-xs">
-                        <i class="fa-solid fa-circle"></i>
-                        <span id="labelRecord">Start Recording</span>
+            <!-- Text-To-Speech (TTS) Controls -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 shrink-0 shadow-lg space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span class="font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-comment-dots text-pink-400"></i> TTS Speech Synthesizer
                     </span>
-                    <i class="fa-solid fa-chevron-right text-xs opacity-60"></i>
-                </button>
-
-                <div class="grid grid-cols-2 gap-2 pt-1">
-                    <button id="btnReplay" onclick="saveReplay()" class="py-2 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition">
-                        <i class="fa-solid fa-rotate-left text-amber-400"></i> Replay
-                    </button>
-                    <button id="btnVCam" onclick="toggleVirtualCam()" class="py-2 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition">
-                        <i class="fa-solid fa-camera text-blue-400"></i>
-                        <span id="labelVCam">VCam</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Console Notification Log -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg flex-1 flex flex-col">
-                <div class="text-xs font-medium text-slate-500 mb-1 flex justify-between">
-                    <span>Console Log</span>
-                    <span id="clearLogBtn" onclick="clearLog()" class="cursor-pointer hover:text-slate-300">Clear</span>
-                </div>
-                <div id="consoleLog" class="h-28 overflow-y-auto text-[11px] font-mono text-slate-400 space-y-1">
-                    <div>[00:00:00] Web Control Panel initialized.</div>
-                </div>
-            </div>
-
-            <!-- Stream Chat Text-to-Speech (TTS) Panel -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col gap-3">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-volume-high text-pink-400"></i> Stream Chat TTS
-                    </h2>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="ttsToggle" onchange="toggleTTS(this.checked)" class="sr-only peer">
-                        <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+                        <div class="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-pink-600"></div>
                     </label>
                 </div>
 
-                <div class="space-y-2 text-xs">
+                <div class="space-y-2">
                     <div>
-                        <label class="block text-slate-400 text-[11px] mb-1">Voice</label>
-                        <select id="ttsVoiceSelect" onchange="saveTTSSettings()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-200 focus:outline-none focus:border-pink-500">
-                            <option value="">Default System Voice</option>
+                        <label class="block text-slate-400 text-[11px] mb-1">Voice Accent / Speaker</label>
+                        <select id="ttsVoiceSelect" onchange="saveTTSSettings()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-slate-200 focus:outline-none focus:border-pink-500 text-xs">
+                            <option value="">Default OS Voice</option>
                         </select>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 pt-1">
+                    <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <div class="flex justify-between text-[10px] text-slate-400 mb-0.5">
-                                <span>Volume</span>
-                                <span id="ttsVolVal">100%</span>
-                            </div>
-                            <input type="range" id="ttsVolume" min="0" max="100" value="100" oninput="updateTTSParams()" class="w-full">
+                            <label class="block text-slate-400 text-[11px] mb-1">Volume</label>
+                            <input type="range" id="ttsVolume" min="0" max="1" step="0.1" value="1" onchange="saveTTSSettings()" class="w-full accent-pink-500 bg-slate-800 h-1.5 rounded-lg appearance-none">
                         </div>
                         <div>
-                            <div class="flex justify-between text-[10px] text-slate-400 mb-0.5">
-                                <span>Speed</span>
-                                <span id="ttsRateVal">1.0x</span>
-                            </div>
-                            <input type="range" id="ttsRate" min="5" max="20" value="10" oninput="updateTTSParams()" class="w-full">
+                            <label class="block text-slate-400 text-[11px] mb-1">Speech Speed Rate</label>
+                            <input type="range" id="ttsRate" min="0.5" max="2" step="0.1" value="1" onchange="saveTTSSettings()" class="w-full accent-pink-500 bg-slate-800 h-1.5 rounded-lg appearance-none">
                         </div>
                     </div>
 
                     <div class="flex items-center gap-2 pt-1">
                         <input type="checkbox" id="ttsReadUsername" checked onchange="saveTTSSettings()" class="rounded bg-slate-800 border-slate-700 text-pink-600 focus:ring-0">
                         <label for="ttsReadUsername" class="text-[11px] text-slate-300">Read username before message</label>
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-400 text-[11px] mb-1">Twitch Username / Channel</label>
+                        <div class="relative">
+                            <i class="fa-brands fa-twitch absolute left-2.5 top-2 text-purple-400 text-xs"></i>
+                            <input type="text" id="twitchUsernameInput" onchange="saveTTSSettings()" placeholder="e.g. streamer_name" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-7 pr-2 py-1 text-slate-200 focus:outline-none focus:border-pink-500 text-xs">
+                        </div>
                     </div>
 
                     <div class="flex gap-2 pt-1">
@@ -319,7 +194,6 @@
                     </div>
                 </div>
             </div>
-
         </section>
     </main>
 
@@ -370,6 +244,10 @@
                             <input type="text" id="sbPort" value="8080" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-purple-500">
                         </div>
                     </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Twitch Channel Username</label>
+                        <input type="text" id="sbTwitchChannel" placeholder="Your Twitch Channel Name" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-purple-500">
+                    </div>
                 </div>
 
                 <div class="pt-2 flex justify-end gap-3">
@@ -382,64 +260,26 @@
 
     <!-- Application Script Logic -->
     <script>
-        // Real OBS WebSocket Instance
-        let obs = new OBSWebSocket();
-
-        // Native Streamer.bot WebSocket Connection
-        let sbSocket = null;
-
-        // Strict whitelist of audio input kinds that produce/capture sound
-        const AUDIO_INPUT_KINDS = [
-            'wasapi_input_capture',          // Microphone / Line In
-            'wasapi_output_capture',         // Desktop / Speaker Audio
-            'wasapi_process_output_capture',    // Application Audio Capture
-            'pulse_input_capture',           // Linux Mic
-            'pulse_output_capture',          // Linux Desktop Audio
-            'coreaudio_input_capture',       // macOS Mic
-            'coreaudio_output_capture',      // macOS Desktop Audio
-            'alsa_input_capture',            // Linux ALSA Audio
-            'ffmpeg_source',                 // Media / Video / Audio Files
-            'vlc_source'                     // VLC Audio Playlist
-        ];
-
-        // Explicitly non-audio kinds or non-standard audio emitters
-        const EXCLUDE_AUDIO_KINDS = [
-            'image_source',
-            'color_source',
-            'text_ft2_source',
-            'text_gdiplus',
-            'text_gdiplus_v2',
-            'slideshow',
-            'monitor_capture',
-            'window_capture',
-            'game_capture',
-            'dshow_input',                   // Webcams
-            'browser_source'                 // Browser sources
-        ];
-
-        // Application State
+        // Global Application State
         const obsState = {
-            isConnected: false,
-            isStreaming: false,
-            isRecording: false,
-            isVirtualCam: false,
-            activeScene: '',
+            ws: null,
+            connected: false,
+            savedHost: localStorage.getItem('obs_host') || '127.0.0.1',
+            savedPort: localStorage.getItem('obs_port') || '4455',
+            savedPass: localStorage.getItem('obs_pass') || '',
+            currentScene: '',
             scenes: [],
-            sources: {},
-            audioInputs: [],
-            filterSilentSources: true,
-            statsInterval: null,
-            savedHost: '127.0.0.1',
-            savedPort: '4455',
-            savedPass: ''
+            sources: [],
+            audioInputs: []
         };
 
         const sbState = {
-            isConnected: false,
-            host: '127.0.0.1',
-            port: '8080',
+            ws: null,
+            connected: false,
+            host: localStorage.getItem('sb_host') || '127.0.0.1',
+            port: localStorage.getItem('sb_port') || '8080',
             commands: [],
-            groups: new Set()
+            selectedGroup: 'All'
         };
 
         // Text-to-Speech (TTS) Settings State
@@ -449,75 +289,440 @@
             volume: 1.0,
             rate: 1.0,
             readUsername: true,
+            twitchUsername: localStorage.getItem('twitch_username') || '',
             synth: window.speechSynthesis || null
         };
+
+        // Audio Input Kinds Whitelist
+        const AUDIO_INPUT_KINDS = [
+            'wasapi_input_capture',
+            'wasapi_output_capture',
+            'audio_capture',
+            'ffmpeg_source',
+            'alsa_input_capture',
+            'pulse_input_capture',
+            'jack_output_capture'
+        ];
+
+        // Helper to launch current page in standalone tab to bypass iframe websocket restrictions
+        function openInNewTab() {
+            try {
+                const blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            } catch (e) {
+                window.open(window.location.href, '_blank');
+            }
+        }
+
+        function showSecurityAlert() {
+            const alertEl = document.getElementById('wsSecurityAlert');
+            if (alertEl) alertEl.classList.remove('hidden');
+        }
+
+        // Detect if we are running in an iframe/Canvas sandbox
+        function isInIframe() {
+            try {
+                return window.self !== window.top;
+            } catch (e) {
+                return true;
+            }
+        }
 
         // Initialize Web App
         window.onload = function() {
             setupOBSListeners();
             initTTS();
+            
+            // If running inside a sandboxed iframe, show the alert banner right away
+            if (isInIframe()) {
+                showSecurityAlert();
+            }
+
+            // Load Twitch Username into inputs
+            if (ttsState.twitchUsername) {
+                const input = document.getElementById('twitchUsernameInput');
+                const modalInput = document.getElementById('sbTwitchChannel');
+                if (input) input.value = ttsState.twitchUsername;
+                if (modalInput) modalInput.value = ttsState.twitchUsername;
+            }
+
+            // Populate forms
+            document.getElementById('wsHost').value = obsState.savedHost;
+            document.getElementById('wsPort').value = obsState.savedPort;
+            document.getElementById('wsPass').value = obsState.savedPass;
+            document.getElementById('sbHost').value = sbState.host;
+            document.getElementById('sbPort').value = sbState.port;
+
+            // Attempt connection gracefully
             connectOBS(obsState.savedHost, obsState.savedPort, obsState.savedPass);
             connectStreamerBot(sbState.host, sbState.port);
         };
 
-        // ------------------ TTS IMPLEMENTATION ------------------
-        function initTTS() {
-            if (!ttsState.synth) {
-                logMessage("Speech Synthesis TTS is not supported in this browser.");
-                return;
-            }
-            populateTTSVoices();
-            if (speechSynthesis.onvoiceschanged !== undefined) {
-                speechSynthesis.onvoiceschanged = populateTTSVoices;
+        // UI Utility Functions
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.toggle('hidden');
+        }
+
+        function updateBadge(id, connected, label) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (connected) {
+                el.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/50";
+                el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> ${label} Connected`;
+            } else {
+                el.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-950/80 text-red-400 border border-red-800/50";
+                el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> ${label} Disconnected`;
             }
         }
 
-        function populateTTSVoices() {
+        // --- OBS WebSocket v5 Integration ---
+        function setupOBSListeners() {
+            // Placeholder for custom socket listeners
+        }
+
+        function connectOBS(host, port, password) {
+            if (obsState.ws) {
+                try { obsState.ws.close(); } catch(e){}
+            }
+
+            const url = `ws://${host}:${port}`;
+            
+            try {
+                obsState.ws = new WebSocket(url);
+
+                obsState.ws.onopen = () => {
+                    obsState.connected = true;
+                    updateBadge('obsBadge', true, 'OBS');
+                    fetchOBSSceneList();
+                    fetchOBSAudioSources();
+                };
+
+                obsState.ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleOBSMessage(data);
+                    } catch(e) { console.error('Error parsing OBS WS frame', e); }
+                };
+
+                obsState.ws.onclose = () => {
+                    obsState.connected = false;
+                    updateBadge('obsBadge', false, 'OBS');
+                };
+
+                obsState.ws.onerror = (err) => {
+                    console.warn("OBS WS Connection Error (likely blocked by iframe/sandbox rules)");
+                    obsState.connected = false;
+                    updateBadge('obsBadge', false, 'OBS');
+                    showSecurityAlert();
+                };
+            } catch (err) {
+                console.warn("OBS Connection Exception caught:", err);
+                obsState.connected = false;
+                updateBadge('obsBadge', false, 'OBS');
+                showSecurityAlert();
+            }
+        }
+
+        function sendOBSRequest(requestType, requestData = {}) {
+            if (!obsState.ws || obsState.ws.readyState !== WebSocket.OPEN) return;
+            const requestId = "req_" + Date.now() + "_" + Math.floor(Math.random()*1000);
+            const payload = {
+                op: 6,
+                d: { requestType, requestId, requestData }
+            };
+            obsState.ws.send(JSON.stringify(payload));
+        }
+
+        function handleOBSMessage(msg) {
+            if (msg.op === 7) { // RequestResponse
+                const d = msg.d;
+                if (d.requestType === 'GetSceneList') {
+                    obsState.scenes = d.responseData.scenes || [];
+                    obsState.currentScene = d.responseData.currentProgramSceneName;
+                    renderOBSScenes();
+                    fetchOBSSceneItems(obsState.currentScene);
+                } else if (d.requestType === 'GetSceneItemList') {
+                    obsState.sources = d.responseData.sceneItems || [];
+                    renderOBSSources();
+                } else if (d.requestType === 'GetInputList') {
+                    const inputs = d.responseData.inputs || [];
+                    obsState.audioInputs = inputs.filter(i => AUDIO_INPUT_KINDS.includes(i.inputKind));
+                    renderOBSAudioMixer();
+                }
+            }
+        }
+
+        function fetchOBSSceneList() {
+            sendOBSRequest('GetSceneList');
+        }
+
+        function fetchOBSSceneItems(sceneName) {
+            sendOBSRequest('GetSceneItemList', { sceneName });
+        }
+
+        function fetchOBSAudioSources() {
+            sendOBSRequest('GetInputList');
+        }
+
+        function selectOBSScene(sceneName) {
+            sendOBSRequest('SetCurrentProgramScene', { sceneName });
+            obsState.currentScene = sceneName;
+            renderOBSScenes();
+            fetchOBSSceneItems(sceneName);
+        }
+
+        function toggleOBSItemVisibility(sceneItem) {
+            sendOBSRequest('SetSceneItemEnabled', {
+                sceneName: obsState.currentScene,
+                sceneItemId: sceneItem.sceneItemId,
+                sceneItemEnabled: !sceneItem.sceneItemEnabled
+            });
+            sceneItem.sceneItemEnabled = !sceneItem.sceneItemEnabled;
+            renderOBSSources();
+        }
+
+        function renderOBSScenes() {
+            const list = document.getElementById('scenesList');
+            const countEl = document.getElementById('sceneCount');
+            if (!list) return;
+
+            if (countEl) countEl.innerText = obsState.scenes.length;
+
+            if (!obsState.scenes.length) {
+                list.innerHTML = `<div class="text-center py-8 text-slate-500">No scenes found</div>`;
+                return;
+            }
+
+            list.innerHTML = obsState.scenes.map(s => {
+                const isActive = s.sceneName === obsState.currentScene;
+                return `
+                    <button onclick="selectOBSScene('${s.sceneName.replace(/'/g, "\\'")}')" class="w-full text-left px-3 py-2 rounded-lg transition flex items-center justify-between ${isActive ? 'bg-blue-600/30 border border-blue-500/50 text-white font-semibold' : 'bg-slate-800/40 hover:bg-slate-800 text-slate-300'}">
+                        <span class="truncate">${s.sceneName}</span>
+                        ${isActive ? '<i class="fa-solid fa-circle text-[8px] text-blue-400"></i>' : ''}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderOBSSources() {
+            const list = document.getElementById('sourcesList');
+            if (!list) return;
+
+            if (!obsState.sources.length) {
+                list.innerHTML = `<div class="text-center py-8 text-slate-500">No items in this scene</div>`;
+                return;
+            }
+
+            list.innerHTML = obsState.sources.map(s => `
+                <div class="flex items-center justify-between p-2 rounded-lg bg-slate-800/40 border border-slate-800/60 text-slate-200">
+                    <span class="truncate ${!s.sceneItemEnabled ? 'line-through opacity-50' : ''}">${s.sourceName}</span>
+                    <button onclick='toggleOBSItemVisibility(${JSON.stringify(s)})' class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-300">
+                        <i class="fa-solid ${s.sceneItemEnabled ? 'fa-eye text-blue-400' : 'fa-eye-slash text-slate-500'}"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function renderOBSAudioMixer() {
+            const list = document.getElementById('audioMixerList');
+            if (!list) return;
+
+            if (!obsState.audioInputs.length) {
+                list.innerHTML = `<div class="text-center py-4 text-slate-500">No dedicated audio sources</div>`;
+                return;
+            }
+
+            list.innerHTML = obsState.audioInputs.map(a => `
+                <div class="bg-slate-800/40 p-2 rounded-lg border border-slate-800/60 space-y-1">
+                    <div class="flex justify-between text-xs font-medium text-slate-300">
+                        <span class="truncate">${a.inputName}</span>
+                        <i class="fa-solid fa-microphone text-green-400 text-[10px]"></i>
+                    </div>
+                    <input type="range" min="0" max="1" step="0.01" value="0.8" class="w-full accent-green-500 bg-slate-700 h-1 rounded-lg appearance-none">
+                </div>
+            `).join('');
+        }
+
+        // --- Streamer.bot WebSocket Integration ---
+        function connectStreamerBot(host, port) {
+            if (sbState.ws) {
+                try { sbState.ws.close(); } catch(e){}
+            }
+
+            const url = `ws://${host}:${port}`;
+            
+            try {
+                sbState.ws = new WebSocket(url);
+
+                sbState.ws.onopen = () => {
+                    sbState.connected = true;
+                    updateBadge('sbBadge', true, 'Streamer.bot');
+                    
+                    // Subscribe to events including Twitch chat
+                    sbState.ws.send(JSON.stringify({
+                        request: "Subscribe",
+                        id: "subscribe_events",
+                        events: {
+                            Twitch: ["ChatMessage"],
+                            YouTube: ["Message"]
+                        }
+                    }));
+
+                    // Fetch commands
+                    sbState.ws.send(JSON.stringify({
+                        request: "GetCommands",
+                        id: "get_commands"
+                    }));
+                };
+
+                sbState.ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.id === "get_commands" && data.commands) {
+                            sbState.commands = data.commands;
+                            renderStreamerBotCommands();
+                        } else if (data.event && (data.event.type === "ChatMessage" || data.event.type === "Message")) {
+                            const user = data.data.message.displayName || data.data.message.username || "User";
+                            const text = data.data.message.message;
+                            handleIncomingChatMessage(user, text);
+                        }
+                    } catch(e) { console.error('Error in Streamer.bot frame', e); }
+                };
+
+                sbState.ws.onclose = () => {
+                    sbState.connected = false;
+                    updateBadge('sbBadge', false, 'Streamer.bot');
+                };
+
+                sbState.ws.onerror = (err) => {
+                    console.warn("Streamer.bot WS Connection Error (likely blocked by iframe/sandbox rules)");
+                    sbState.connected = false;
+                    updateBadge('sbBadge', false, 'Streamer.bot');
+                    showSecurityAlert();
+                };
+            } catch (err) {
+                console.warn("Streamer.bot Connection Exception caught:", err);
+                sbState.connected = false;
+                updateBadge('sbBadge', false, 'Streamer.bot');
+                showSecurityAlert();
+            }
+        }
+
+        function renderStreamerBotCommands() {
+            const container = document.getElementById('sbCommandsList');
+            const tabsContainer = document.getElementById('sbGroupTabs');
+            if (!container) return;
+
+            const searchVal = (document.getElementById('sbSearch')?.value || '').toLowerCase();
+            const groups = ['All', ...new Set(sbState.commands.map(c => c.group || 'Default'))];
+
+            if (tabsContainer) {
+                tabsContainer.innerHTML = groups.map(g => `
+                    <button onclick="setSBGroup('${g}')" class="px-2.5 py-1 rounded-lg font-medium text-[11px] shrink-0 ${sbState.selectedGroup === g ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
+                        ${g}
+                    </button>
+                `).join('');
+            }
+
+            const filtered = sbState.commands.filter(c => {
+                const matchesGroup = sbState.selectedGroup === 'All' || (c.group || 'Default') === sbState.selectedGroup;
+                const matchesSearch = c.name.toLowerCase().includes(searchVal);
+                return matchesGroup && matchesSearch;
+            });
+
+            if (!filtered.length) {
+                container.innerHTML = `<div class="col-span-2 text-center py-8 text-slate-500">No matching Streamer.bot commands</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(c => `
+                <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-800 flex justify-between items-center gap-2">
+                    <div class="min-w-0">
+                        <div class="font-semibold text-slate-200 truncate">${c.name}</div>
+                        <div class="text-[10px] text-purple-400 font-mono">${c.group || 'Default'}</div>
+                    </div>
+                    <button onclick="toggleSBCommand('${c.id}', ${!c.enabled})" class="px-2.5 py-1 rounded-lg text-xs font-semibold transition ${c.enabled ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500 border border-slate-700'}">
+                        ${c.enabled ? 'Enabled' : 'Disabled'}
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function setSBGroup(group) {
+            sbState.selectedGroup = group;
+            renderStreamerBotCommands();
+        }
+
+        function filterSBCommands() {
+            renderStreamerBotCommands();
+        }
+
+        function toggleSBCommand(id, enable) {
+            if (!sbState.ws || sbState.ws.readyState !== WebSocket.OPEN) return;
+            sbState.ws.send(JSON.stringify({
+                request: enable ? "EnableCommand" : "DisableCommand",
+                id: "toggle_cmd",
+                command: { id }
+            }));
+            const cmd = sbState.commands.find(c => c.id === id);
+            if (cmd) cmd.enabled = enable;
+            renderStreamerBotCommands();
+        }
+
+        function enableAllStreamerBotCommands() {
+            sbState.commands.forEach(c => {
+                if (!c.enabled) toggleSBCommand(c.id, true);
+            });
+        }
+
+        // --- Text-To-Speech (TTS) Implementation ---
+        function initTTS() {
+            if (!ttsState.synth) return;
+            populateVoiceList();
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = populateVoiceList;
+            }
+        }
+
+        function populateVoiceList() {
             if (!ttsState.synth) return;
             const voices = ttsState.synth.getVoices();
             const select = document.getElementById('ttsVoiceSelect');
             if (!select) return;
 
-            const selectedVal = select.value;
-            select.innerHTML = '<option value="">Default System Voice</option>';
-
+            select.innerHTML = '<option value="">Default OS Voice</option>';
             voices.forEach(voice => {
                 const opt = document.createElement('option');
                 opt.value = voice.voiceURI;
-                opt.innerText = `${voice.name} (${voice.lang})`;
+                opt.textContent = `${voice.name} (${voice.lang})`;
                 select.appendChild(opt);
             });
-
-            if (selectedVal) select.value = selectedVal;
         }
 
         function toggleTTS(enabled) {
             ttsState.enabled = enabled;
-            if (!enabled) stopTTS();
-            logMessage(`Stream Chat TTS ${enabled ? 'Enabled' : 'Disabled'}`);
-        }
-
-        function updateTTSParams() {
-            const volVal = document.getElementById('ttsVolume')?.value || 100;
-            const rateVal = document.getElementById('ttsRate')?.value || 10;
-            
-            ttsState.volume = parseFloat(volVal) / 100;
-            ttsState.rate = parseFloat(rateVal) / 10;
-
-            document.getElementById('ttsVolVal').innerText = `${volVal}%`;
-            document.getElementById('ttsRateVal').innerText = `${(ttsState.rate).toFixed(1)}x`;
-            
-            saveTTSSettings();
         }
 
         function saveTTSSettings() {
             ttsState.voiceURI = document.getElementById('ttsVoiceSelect')?.value || '';
+            ttsState.volume = parseFloat(document.getElementById('ttsVolume')?.value || '1');
+            ttsState.rate = parseFloat(document.getElementById('ttsRate')?.value || '1');
             ttsState.readUsername = document.getElementById('ttsReadUsername')?.checked ?? true;
+            
+            const userIn = document.getElementById('twitchUsernameInput')?.value.trim();
+            if (userIn !== undefined) {
+                ttsState.twitchUsername = userIn;
+                localStorage.setItem('twitch_username', userIn);
+                const modalIn = document.getElementById('sbTwitchChannel');
+                if (modalIn) modalIn.value = userIn;
+            }
         }
 
         function speakText(text) {
-            if (!ttsState.enabled || !ttsState.synth || !text) return;
-
+            if (!ttsState.synth) return;
+            
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.volume = ttsState.volume;
             utterance.rate = ttsState.rate;
@@ -529,17 +734,6 @@
             }
 
             ttsState.synth.speak(utterance);
-        }
-
-        function stopTTS() {
-            if (ttsState.synth) {
-                ttsState.synth.cancel();
-            }
-        }
-
-        function testTTS() {
-            const testMsg = ttsState.readUsername ? "TestUser says: Text to speech is working correctly!" : "Text to speech is working correctly!";
-            speakText(testMsg);
         }
 
         function handleIncomingChatMessage(username, message) {
@@ -555,736 +749,14 @@
             speakText(speakPayload);
         }
 
-        // ------------------ STREAMER.BOT WEBSOCKET IMPLEMENTATION ------------------
-        function connectStreamerBot(host, port) {
-            sbState.host = host;
-            sbState.port = port;
+        function testTTS() {
+            speakText("Text to speech audio test working successfully!");
+        }
 
-            const url = `ws://${host}:${port}/`;
-            logMessage(`Connecting to Streamer.bot WebSocket: ${url}`);
-
-            if (sbSocket) {
-                try { sbSocket.close(); } catch(e) {}
+        function stopTTS() {
+            if (ttsState.synth) {
+                ttsState.synth.cancel();
             }
-
-            try {
-                sbSocket = new WebSocket(url);
-
-                sbSocket.onopen = () => {
-                    sbState.isConnected = true;
-                    updateStreamerBotUI(true);
-                    logMessage('Streamer.bot Connected!');
-                    
-                    // Subscribe to Chat Events for TTS
-                    sbSocket.send(JSON.stringify({
-                        request: 'Subscribe',
-                        id: 'tts-chat-sub',
-                        events: {
-                            Twitch: ['ChatMessage'],
-                            YouTube: ['Message']
-                        }
-                    }));
-
-                    fetchStreamerBotCommands();
-                };
-
-                sbSocket.onmessage = (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        handleStreamerBotMessage(data);
-                    } catch(err) {
-                        // Response parsing error
-                    }
-                };
-
-                sbSocket.onerror = () => {
-                    sbState.isConnected = false;
-                    updateStreamerBotUI(false);
-                };
-
-                sbSocket.onclose = () => {
-                    sbState.isConnected = false;
-                    updateStreamerBotUI(false);
-                    logMessage('Streamer.bot connection closed.');
-                };
-
-            } catch (err) {
-                sbState.isConnected = false;
-                updateStreamerBotUI(false);
-                logMessage(`Streamer.bot connection failed: ${err.message}`);
-            }
-        }
-
-        function fetchStreamerBotCommands() {
-            if (!sbSocket || sbSocket.readyState !== WebSocket.OPEN) return;
-            const requestId = 'get-commands-' + Date.now();
-            
-            // Standard Streamer.bot WebSocket request payload for commands
-            sbSocket.send(JSON.stringify({
-                request: 'GetCommands',
-                id: requestId
-            }));
-            
-            logMessage('Requesting Streamer.bot commands...');
-        }
-
-        function handleStreamerBotMessage(data) {
-            // Process Chat Messages for TTS
-            if (data.event && (data.event.source === 'Twitch' || data.event.source === 'YouTube')) {
-                if (data.event.type === 'ChatMessage' || data.event.type === 'Message') {
-                    const msgData = data.data.message || data.data;
-                    const username = msgData.displayName || msgData.user?.displayName || msgData.username || 'Viewer';
-                    const text = msgData.message || msgData.text || '';
-                    
-                    if (text) {
-                        handleIncomingChatMessage(username, text);
-                    }
-                }
-            }
-
-            // Process command list responses
-            if (data.commands || (data.status === 'ok' && data.commands)) {
-                const commandList = data.commands || [];
-                sbState.commands = commandList;
-                
-                // Extract unique groups
-                sbState.groups.clear();
-                commandList.forEach(cmd => {
-                    const groupName = cmd.group && cmd.group.trim() !== '' ? cmd.group : 'Ungrouped';
-                    sbState.groups.add(groupName);
-                });
-
-                renderStreamerBotGroupsFilter();
-                renderStreamerBotCommands();
-                
-                logMessage(`Loaded ${commandList.length} commands across ${sbState.groups.size} groups from Streamer.bot.`);
-            }
-        }
-
-        function updateStreamerBotUI(connected) {
-            const badge = document.getElementById('sbConnectionBadge');
-            const container = document.getElementById('sbCommandsContainer');
-
-            if (connected) {
-                badge.className = "px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-normal border border-emerald-500/30";
-                badge.innerText = "Streamer.bot: Connected";
-            } else {
-                badge.className = "px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-normal border border-rose-500/30";
-                badge.innerText = "Streamer.bot: Disconnected";
-                if (container) {
-                    container.innerHTML = `
-                        <div class="flex flex-col items-center justify-center h-full text-slate-500 py-12 gap-2 text-center">
-                            <i class="fa-solid fa-robot text-3xl text-slate-600"></i>
-                            <span class="text-xs font-medium">Streamer.bot Not Connected</span>
-                            <span class="text-[11px] text-slate-600 max-w-xs">Verify your Streamer.bot WebSocket Server is enabled in <strong>Streamer.bot &gt; Servers/Clients &gt; WebSocket Server</strong> (Default port 8080).</span>
-                        </div>
-                    `;
-                }
-            }
-        }
-
-        function renderStreamerBotGroupsFilter() {
-            const select = document.getElementById('sbGroupSelect');
-            if (!select) return;
-
-            const currentVal = select.value;
-            select.innerHTML = '<option value="ALL">All Groups</option>';
-
-            Array.from(sbState.groups).sort().forEach(group => {
-                const opt = document.createElement('option');
-                opt.value = group;
-                opt.innerText = group;
-                select.appendChild(opt);
-            });
-
-            if (Array.from(sbState.groups).includes(currentVal)) {
-                select.value = currentVal;
-            }
-        }
-
-        function filterStreamerBotCommands() {
-            renderStreamerBotCommands();
-        }
-
-        function renderStreamerBotCommands() {
-            const container = document.getElementById('sbCommandsContainer');
-            const countBadge = document.getElementById('cmdCountBadge');
-            const searchVal = (document.getElementById('sbSearchInput')?.value || '').toLowerCase();
-            const groupVal = document.getElementById('sbGroupSelect')?.value || 'ALL';
-
-            if (!container) return;
-            container.innerHTML = '';
-
-            let filtered = sbState.commands.filter(cmd => {
-                const cmdGroup = cmd.group && cmd.group.trim() !== '' ? cmd.group : 'Ungrouped';
-                
-                // Group match
-                if (groupVal !== 'ALL' && cmdGroup !== groupVal) return false;
-
-                // Search match (Name, Group, Triggers/Commands)
-                const nameMatch = (cmd.name || '').toLowerCase().includes(searchVal);
-                const groupMatch = cmdGroup.toLowerCase().includes(searchVal);
-                
-                let triggerMatch = false;
-                if (cmd.commands && Array.isArray(cmd.commands)) {
-                    triggerMatch = cmd.commands.some(c => c.toLowerCase().includes(searchVal));
-                }
-
-                return nameMatch || groupMatch || triggerMatch;
-            });
-
-            if (countBadge) countBadge.innerText = `${filtered.length} Commands`;
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="flex flex-col items-center justify-center py-10 text-slate-500 gap-1 text-center">
-                        <i class="fa-solid fa-folder-open text-2xl text-slate-600"></i>
-                        <span class="text-xs font-medium">No matching commands found</span>
-                    </div>
-                `;
-                return;
-            }
-
-            // Group filtered items for clean rendering
-            const groupedMap = {};
-            filtered.forEach(cmd => {
-                const groupName = cmd.group && cmd.group.trim() !== '' ? cmd.group : 'Ungrouped';
-                if (!groupedMap[groupName]) groupedMap[groupName] = [];
-                groupedMap[groupName].push(cmd);
-            });
-
-            Object.keys(groupedMap).sort().forEach(groupName => {
-                const groupSection = document.createElement('div');
-                groupSection.className = 'bg-slate-800/30 border border-slate-800/80 rounded-xl p-3 space-y-2';
-
-                const groupHeader = document.createElement('div');
-                groupHeader.className = 'flex justify-between items-center text-xs font-bold text-slate-400 border-b border-slate-800 pb-1.5';
-                groupHeader.innerHTML = `
-                    <span class="flex items-center gap-2">
-                        <i class="fa-solid fa-folder text-amber-400"></i> ${groupName}
-                    </span>
-                    <span class="text-[10px] font-normal px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">${groupedMap[groupName].length}</span>
-                `;
-                groupSection.appendChild(groupHeader);
-
-                const cmdGrid = document.createElement('div');
-                cmdGrid.className = 'grid grid-cols-1 gap-2 pt-1';
-
-                groupedMap[groupName].forEach(cmd => {
-                    const cmdCard = document.createElement('div');
-                    const isEnabled = cmd.enabled !== false;
-                    
-                    cmdCard.className = `p-2.5 rounded-lg border transition flex justify-between items-center ${
-                        isEnabled 
-                        ? 'bg-slate-800/60 border-slate-700/60 text-slate-200 hover:border-purple-500/50' 
-                        : 'bg-slate-900/60 border-slate-800/80 text-slate-500 opacity-60'
-                    }`;
-
-                    const triggersList = cmd.commands && cmd.commands.length > 0 
-                        ? cmd.commands.map(c => `<span class="bg-purple-500/10 border border-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-mono text-[10px]">${c}</span>`).join(' ')
-                        : '<span class="text-[10px] text-slate-500 italic">No triggers</span>';
-
-                    cmdCard.innerHTML = `
-                        <div class="space-y-1 truncate pr-2">
-                            <div class="flex items-center gap-2">
-                                <span class="font-semibold text-xs text-slate-100 truncate">${cmd.name || 'Unnamed Command'}</span>
-                                ${!isEnabled ? '<span class="text-[9px] bg-red-500/20 text-red-400 border border-red-500/30 px-1 rounded">Disabled</span>' : ''}
-                            </div>
-                            <div class="flex items-center gap-1.5 flex-wrap">
-                                ${triggersList}
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-2 flex-shrink-0">
-                            <span class="text-[10px] px-2 py-0.5 rounded font-mono ${cmd.grant === 0 || cmd.grant === undefined ? 'bg-slate-800 text-slate-400' : 'bg-amber-500/10 text-amber-300 border border-amber-500/20'}">
-                                ${cmd.grant === 0 || !cmd.grant ? 'Everyone' : 'Restricted'}
-                            </span>
-                        </div>
-                    `;
-                    cmdGrid.appendChild(cmdCard);
-                });
-
-                groupSection.appendChild(cmdGrid);
-                container.appendChild(groupSection);
-            });
-        }
-
-        // ------------------ OBS WEBSOCKET IMPLEMENTATION ------------------
-        async function connectOBS(host, port, password) {
-            obsState.savedHost = host;
-            obsState.savedPort = port;
-            obsState.savedPass = password;
-
-            const url = `ws://${host}:${port}`;
-            logMessage(`Connecting to OBS: ${url}...`);
-
-            try {
-                if (obsState.isConnected) {
-                    await obs.disconnect();
-                }
-
-                const { obsWebSocketVersion, negotiatedRpcVersion } = await obs.connect(url, password || undefined, {
-                    eventSubscriptions: (1 << 0) | (1 << 16)
-                });
-                
-                obsState.isConnected = true;
-                updateConnectionUI(true, host, port);
-                logMessage(`Connected to OBS! WebSocket v${obsWebSocketVersion} (RPC v${negotiatedRpcVersion})`);
-
-                await refreshOBSState();
-                startStatsPolling();
-
-            } catch (error) {
-                obsState.isConnected = false;
-                updateConnectionUI(false, host, port);
-                logMessage(`OBS Connection failed: ${error.message || error}`);
-            }
-        }
-
-        function updateConnectionUI(connected, host, port) {
-            const badge = document.getElementById('connectionBadge');
-            const banner = document.getElementById('connectBanner');
-
-            if (connected) {
-                badge.className = "px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-normal border border-emerald-500/30";
-                badge.innerText = "OBS: Connected";
-                if (sbState.isConnected && banner) banner.classList.add('hidden');
-            } else {
-                badge.className = "px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-normal border border-rose-500/30";
-                badge.innerText = "OBS: Disconnected";
-                if (banner) banner.classList.remove('hidden');
-            }
-        }
-
-        async function refreshOBSState() {
-            if (!obsState.isConnected) return;
-
-            try {
-                const scenesData = await obs.call('GetSceneList');
-                obsState.activeScene = scenesData.currentProgramSceneName;
-                obsState.scenes = scenesData.scenes.map(s => ({
-                    name: s.sceneName,
-                    icon: getSceneIcon(s.sceneName)
-                }));
-                renderScenes();
-
-                await fetchSourcesForCurrentScene();
-                await fetchAudioInputs();
-
-                const streamStatus = await obs.call('GetStreamStatus');
-                updateStreamUI(streamStatus.outputActive, streamStatus.outputTimecode);
-
-                const recordStatus = await obs.call('GetRecordStatus');
-                updateRecordUI(recordStatus.outputActive, recordStatus.outputTimecode);
-
-                const vcamStatus = await obs.call('GetVirtualCamStatus');
-                updateVirtualCamUI(vcamStatus.outputActive);
-
-            } catch (err) {
-                logMessage(`Error fetching OBS state: ${err.message}`);
-            }
-        }
-
-        function setupOBSListeners() {
-            obs.on('CurrentProgramSceneChanged', data => {
-                obsState.activeScene = data.sceneName;
-                renderScenes();
-                fetchSourcesForCurrentScene();
-                logMessage(`Scene switched to: "${data.sceneName}"`);
-            });
-
-            obs.on('SceneItemEnableStateChanged', data => {
-                if (data.sceneName === obsState.activeScene) {
-                    fetchSourcesForCurrentScene();
-                }
-            });
-
-            obs.on('StreamStateChanged', data => {
-                updateStreamUI(data.outputActive);
-            });
-
-            obs.on('RecordStateChanged', data => {
-                updateRecordUI(data.outputActive);
-            });
-
-            obs.on('InputMuteStateChanged', data => {
-                const input = obsState.audioInputs.find(i => i.name === data.inputName);
-                if (input) {
-                    input.muted = data.inputMuted;
-                    renderAudioMixer();
-                }
-            });
-
-            obs.on('InputVolumeChanged', data => {
-                const input = obsState.audioInputs.find(i => i.name === data.inputName);
-                if (input) {
-                    input.volumeDb = data.inputVolumeDb;
-                    input.volumeMul = data.inputVolumeMul;
-                    renderAudioMixer();
-                }
-            });
-
-            obs.on('InputVolumeMeters', data => {
-                if (!data.inputs || !Array.isArray(data.inputs)) return;
-
-                data.inputs.forEach(inputMeter => {
-                    const idx = obsState.audioInputs.findIndex(i => i.name === inputMeter.inputName);
-                    if (idx !== -1) {
-                        const meterElem = document.getElementById(`meter-${idx}`);
-                        let maxMul = 0;
-                        if (inputMeter.inputLevelsMul && inputMeter.inputLevelsMul.length > 0) {
-                            inputMeter.inputLevelsMul.forEach(channel => {
-                                if (channel[0] > maxMul) maxMul = channel[0];
-                            });
-                        }
-                        const levelPercent = Math.min(100, Math.max(0, maxMul * 100));
-                        if (meterElem) meterElem.style.width = `${levelPercent}%`;
-                    }
-                });
-            });
-
-            obs.on('ConnectionClosed', () => {
-                obsState.isConnected = false;
-                updateConnectionUI(false, '', '');
-                logMessage('OBS WebSocket connection closed.');
-            });
-        }
-
-        async function fetchSourcesForCurrentScene() {
-            if (!obsState.activeScene) return;
-
-            try {
-                const itemsData = await obs.call('GetSceneItemList', { sceneName: obsState.activeScene });
-                obsState.sources[obsState.activeScene] = itemsData.sceneItems.map(item => ({
-                    id: item.sceneItemId,
-                    name: item.sourceName,
-                    visible: item.sceneItemEnabled,
-                    type: item.inputKind || item.sourceType
-                }));
-                renderSources();
-            } catch (err) {
-                logMessage(`Failed to fetch scene sources: ${err.message}`);
-            }
-        }
-
-        async function fetchAudioInputs() {
-            if (!obsState.isConnected) return;
-            try {
-                const inputsData = await obs.call('GetInputList');
-                const audioTracks = [];
-
-                for (const input of inputsData.inputs) {
-                    const kind = (input.inputKind || '').toLowerCase();
-                    const isStrictAudioKind = AUDIO_INPUT_KINDS.some(k => kind.includes(k));
-                    const isExcludedKind = EXCLUDE_AUDIO_KINDS.some(k => kind.includes(k));
-
-                    if (isExcludedKind && !isStrictAudioKind) continue;
-
-                    try {
-                        const vol = await obs.call('GetInputVolume', { inputName: input.inputName });
-                        const mute = await obs.call('GetInputMute', { inputName: input.inputName });
-                        
-                        audioTracks.push({
-                            name: input.inputName,
-                            kind: input.inputKind,
-                            volumeDb: vol.inputVolumeDb,
-                            volumeMul: vol.inputVolumeMul,
-                            muted: mute.inputMuted,
-                            isAudioSource: isStrictAudioKind
-                        });
-                    } catch (e) {}
-                }
-
-                obsState.audioInputs = audioTracks;
-                renderAudioMixer();
-            } catch (err) {
-                logMessage(`Failed to fetch audio inputs: ${err.message}`);
-            }
-        }
-
-        function toggleAudioFilter() {
-            obsState.filterSilentSources = !obsState.filterSilentSources;
-            const btn = document.getElementById('btnToggleAudioFilter');
-            if (obsState.filterSilentSources) {
-                btn.className = "text-[11px] px-2 py-0.5 rounded border border-blue-500/40 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition";
-                btn.innerText = "Audio Only";
-            } else {
-                btn.className = "text-[11px] px-2 py-0.5 rounded border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 transition";
-                btn.innerText = "All Tracks";
-            }
-            renderAudioMixer();
-        }
-
-        function renderScenes() {
-            const grid = document.getElementById('scenesGrid');
-            grid.innerHTML = '';
-
-            if (obsState.scenes.length === 0) {
-                grid.innerHTML = `<p class="text-xs text-slate-500 italic col-span-2">No scenes loaded.</p>`;
-                return;
-            }
-
-            obsState.scenes.forEach(scene => {
-                const isActive = scene.name === obsState.activeScene;
-                const card = document.createElement('button');
-                card.onclick = () => selectScene(scene.name);
-                card.className = `p-3 rounded-xl text-left border transition flex flex-col justify-between h-20 ${
-                    isActive 
-                    ? 'bg-blue-600/20 border-blue-500 text-white shadow-lg shadow-blue-500/10' 
-                    : 'bg-slate-800/50 border-slate-800 text-slate-400 hover:bg-slate-800 hover:border-slate-700'
-                }`;
-
-                card.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <i class="fa-solid ${scene.icon} ${isActive ? 'text-blue-400' : 'text-slate-500'} text-sm"></i>
-                        ${isActive ? '<span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>' : ''}
-                    </div>
-                    <span class="font-semibold text-xs truncate w-full">${scene.name}</span>
-                `;
-                grid.appendChild(card);
-            });
-
-            document.getElementById('activeSceneText').innerText = obsState.activeScene || '--';
-        }
-
-        async function selectScene(sceneName) {
-            if (!obsState.isConnected) return;
-            try {
-                await obs.call('SetCurrentProgramScene', { sceneName });
-            } catch (err) {
-                logMessage(`Error switching scene: ${err.message}`);
-            }
-        }
-
-        function renderSources() {
-            const container = document.getElementById('sourcesContainer');
-            container.innerHTML = '';
-
-            const list = obsState.sources[obsState.activeScene] || [];
-
-            if (list.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-500 italic py-2">No sources in scene.</p>`;
-                return;
-            }
-
-            list.forEach(src => {
-                const item = document.createElement('div');
-                item.className = 'flex items-center justify-between p-2 rounded-lg bg-slate-800/40 border border-slate-800/80 hover:border-slate-700 transition';
-                
-                item.innerHTML = `
-                    <div class="flex items-center gap-2 truncate pr-2">
-                        <i class="fa-solid ${getSourceIcon(src.type)} text-slate-500 text-xs w-4"></i>
-                        <span class="text-xs font-medium ${src.visible ? 'text-slate-200' : 'text-slate-500 line-through'} truncate">${src.name}</span>
-                    </div>
-                    <button onclick="toggleSourceVisibility(${src.id}, ${src.visible})" class="p-1 px-1.5 rounded hover:bg-slate-700 text-xs ${src.visible ? 'text-blue-400' : 'text-slate-600'}">
-                        <i class="fa-solid ${src.visible ? 'fa-eye' : 'fa-eye-slash'}"></i>
-                    </button>
-                `;
-                container.appendChild(item);
-            });
-        }
-
-        async function toggleSourceVisibility(sceneItemId, currentVisibility) {
-            if (!obsState.isConnected) return;
-            try {
-                await obs.call('SetSceneItemEnabled', {
-                    sceneName: obsState.activeScene,
-                    sceneItemId: sceneItemId,
-                    sceneItemEnabled: !currentVisibility
-                });
-            } catch (err) {
-                logMessage(`Failed to toggle visibility: ${err.message}`);
-            }
-        }
-
-        function renderAudioMixer() {
-            const container = document.getElementById('audioMixerContainer');
-            container.innerHTML = '';
-
-            let tracksToRender = obsState.audioInputs;
-            if (obsState.filterSilentSources) {
-                tracksToRender = obsState.audioInputs.filter(t => t.isAudioSource);
-            }
-
-            if (tracksToRender.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-500 italic">No audio sources found.</p>`;
-                return;
-            }
-
-            tracksToRender.forEach((track, idx) => {
-                const dbVal = track.volumeDb !== undefined ? track.volumeDb.toFixed(1) : '-0.0';
-                const sliderVal = Math.round((track.volumeMul || 1.0) * 100);
-
-                const item = document.createElement('div');
-                item.className = 'bg-slate-800/40 border border-slate-800 p-2.5 rounded-xl space-y-1.5';
-
-                item.innerHTML = `
-                    <div class="flex justify-between items-center text-xs">
-                        <span class="font-medium text-slate-300 flex items-center gap-2 truncate pr-2">
-                            <i class="fa-solid ${track.muted ? 'fa-volume-xmark text-red-400' : 'fa-volume-high text-slate-400'}"></i>
-                            <span class="truncate text-xs">${track.name}</span>
-                        </span>
-                        <span class="font-mono text-slate-400 text-[10px] flex-shrink-0">${track.muted ? 'MUTED' : dbVal + ' dB'}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        <button onclick="toggleMute('${escapeQuotes(track.name)}', ${track.muted})" class="p-1 rounded border ${track.muted ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'} transition text-xs">
-                            <i class="fa-solid ${track.muted ? 'fa-microphone-slash' : 'fa-microphone'}"></i>
-                        </button>
-                        <input type="range" min="0" max="100" value="${track.muted ? 0 : sliderVal}" ${track.muted ? 'disabled' : ''} onchange="updateVolume('${escapeQuotes(track.name)}', this.value)" class="w-full">
-                    </div>
-
-                    <div class="w-full h-1 bg-slate-800 rounded-full overflow-hidden flex">
-                        <div id="meter-${idx}" class="h-full bg-gradient-to-r from-emerald-500 via-amber-400 to-red-500 transition-all duration-75" style="width: 0%"></div>
-                    </div>
-                `;
-                container.appendChild(item);
-            });
-        }
-
-        async function toggleMute(inputName, currentMuted) {
-            if (!obsState.isConnected) return;
-            try {
-                await obs.call('SetInputMute', { inputName, inputMuted: !currentMuted });
-            } catch (err) {
-                logMessage(`Mute toggle error: ${err.message}`);
-            }
-        }
-
-        async function updateVolume(inputName, value) {
-            if (!obsState.isConnected) return;
-            const volumeMul = parseFloat(value) / 100;
-            try {
-                await obs.call('SetInputVolume', { inputName, inputVolumeMul: volumeMul });
-            } catch (err) {
-                logMessage(`Volume update error: ${err.message}`);
-            }
-        }
-
-        async function toggleStream() {
-            if (!obsState.isConnected) return;
-            try { await obs.call('ToggleStream'); } catch (err) { logMessage(`Stream error: ${err.message}`); }
-        }
-
-        async function toggleRecord() {
-            if (!obsState.isConnected) return;
-            try { await obs.call('ToggleRecord'); } catch (err) { logMessage(`Record error: ${err.message}`); }
-        }
-
-        async function toggleVirtualCam() {
-            if (!obsState.isConnected) return;
-            try {
-                await obs.call('ToggleVirtualCam');
-                const vcamStatus = await obs.call('GetVirtualCamStatus');
-                updateVirtualCamUI(vcamStatus.outputActive);
-            } catch (err) { logMessage(`Virtual Cam error: ${err.message}`); }
-        }
-
-        async function saveReplay() {
-            if (!obsState.isConnected) return;
-            try {
-                await obs.call('SaveReplayBuffer');
-                logMessage('Replay Buffer saved!');
-            } catch (err) { logMessage(`Replay Buffer error: ${err.message}`); }
-        }
-
-        function updateStreamUI(active, timecode = "00:00:00") {
-            obsState.isStreaming = active;
-            const btn = document.getElementById('btnStream');
-            const label = document.getElementById('labelStream');
-            const dot = document.getElementById('dotStream');
-            const timer = document.getElementById('timerStream');
-
-            if (active) {
-                btn.className = 'w-full py-2.5 px-3 rounded-lg font-bold flex items-center justify-between transition-all bg-emerald-600 hover:bg-emerald-500 text-white shadow';
-                label.innerText = 'Stop Streaming';
-                dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping';
-                if (timecode) timer.innerText = timecode.split('.')[0];
-            } else {
-                btn.className = 'w-full py-2.5 px-3 rounded-lg font-bold flex items-center justify-between transition-all bg-purple-600 hover:bg-purple-500 text-white shadow';
-                label.innerText = 'Start Streaming';
-                dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500';
-                timer.innerText = '00:00:00';
-            }
-        }
-
-        function updateRecordUI(active, timecode = "00:00:00") {
-            obsState.isRecording = active;
-            const btn = document.getElementById('btnRecord');
-            const label = document.getElementById('labelRecord');
-            const dot = document.getElementById('dotRecord');
-            const timer = document.getElementById('timerRecord');
-
-            if (active) {
-                btn.className = 'w-full py-2.5 px-3 rounded-lg font-bold flex items-center justify-between transition-all bg-slate-800 hover:bg-slate-700 text-red-400 border border-red-500/50 shadow';
-                label.innerText = 'Stop Recording';
-                dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse';
-                if (timecode) timer.innerText = timecode.split('.')[0];
-            } else {
-                btn.className = 'w-full py-2.5 px-3 rounded-lg font-bold flex items-center justify-between transition-all bg-red-600 hover:bg-red-500 text-white shadow';
-                label.innerText = 'Start Recording';
-                dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500';
-                timer.innerText = '00:00:00';
-            }
-        }
-
-        function updateVirtualCamUI(active) {
-            obsState.isVirtualCam = active;
-            const btn = document.getElementById('btnVCam');
-            const label = document.getElementById('labelVCam');
-
-            if (active) {
-                btn.classList.add('border-blue-500', 'text-blue-400');
-                label.innerText = 'VCam Active';
-            } else {
-                btn.classList.remove('border-blue-500', 'text-blue-400');
-                label.innerText = 'VCam';
-            }
-        }
-
-        function startStatsPolling() {
-            if (obsState.statsInterval) clearInterval(obsState.statsInterval);
-
-            obsState.statsInterval = setInterval(async () => {
-                if (!obsState.isConnected) return;
-                try {
-                    const stats = await obs.call('GetStats');
-                    document.getElementById('valFps').innerText = Math.round(stats.activeFps);
-                    document.getElementById('valCpu').innerText = stats.cpuUsage.toFixed(1) + '%';
-
-                    if (obsState.isStreaming) {
-                        const streamStatus = await obs.call('GetStreamStatus');
-                        document.getElementById('valBitrate').innerText = streamStatus.kbitsPerSec || 0;
-                        updateStreamUI(true, streamStatus.outputTimecode);
-                    }
-
-                    if (obsState.isRecording) {
-                        const recordStatus = await obs.call('GetRecordStatus');
-                        updateRecordUI(true, recordStatus.outputTimecode);
-                    }
-                } catch (e) {}
-            }, 1000);
-        }
-
-        function getSceneIcon(name) {
-            const lower = name.toLowerCase();
-            if (lower.includes('start') || lower.includes('soon')) return 'fa-hourglass-start';
-            if (lower.includes('game') || lower.includes('play')) return 'fa-gamepad';
-            if (lower.includes('chat') || lower.includes('talk')) return 'fa-comments';
-            if (lower.includes('brb') || lower.includes('break')) return 'fa-mug-hot';
-            if (lower.includes('end') || lower.includes('outro')) return 'fa-flag-checkered';
-            return 'fa-desktop';
-        }
-
-        function getSourceIcon(type) {
-            if (!type) return 'fa-cube';
-            const lower = type.toLowerCase();
-            if (lower.includes('game')) return 'fa-gamepad';
-            if (lower.includes('dshow') || lower.includes('camera') || lower.includes('video_capture')) return 'fa-video';
-            if (lower.includes('browser')) return 'fa-globe';
-            if (lower.includes('image')) return 'fa-image';
-            if (lower.includes('ffmpeg') || lower.includes('media')) return 'fa-film';
-            return 'fa-cube';
         }
 
         function saveSettings(e) {
@@ -1295,34 +767,31 @@
 
             const sbHost = document.getElementById('sbHost').value;
             const sbPort = document.getElementById('sbPort').value;
+            const channel = document.getElementById('sbTwitchChannel').value.trim();
+
+            obsState.savedHost = host;
+            obsState.savedPort = port;
+            obsState.savedPass = pass;
+            sbState.host = sbHost;
+            sbState.port = sbPort;
+
+            localStorage.setItem('obs_host', host);
+            localStorage.setItem('obs_port', port);
+            localStorage.setItem('obs_pass', pass);
+            localStorage.setItem('sb_host', sbHost);
+            localStorage.setItem('sb_port', sbPort);
+
+            if (channel) {
+                ttsState.twitchUsername = channel;
+                localStorage.setItem('twitch_username', channel);
+                const userIn = document.getElementById('twitchUsernameInput');
+                if (userIn) userIn.value = channel;
+            }
 
             toggleModal('settingsModal');
             
             connectOBS(host, port, pass);
             connectStreamerBot(sbHost, sbPort);
-        }
-
-        function escapeQuotes(str) {
-            return str.replace(/'/g, "\\'");
-        }
-
-        function logMessage(msg) {
-            const consoleLog = document.getElementById('consoleLog');
-            if (!consoleLog) return;
-            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-            const entry = document.createElement('div');
-            entry.innerText = `[${time}] ${msg}`;
-            consoleLog.appendChild(entry);
-            consoleLog.scrollTop = consoleLog.scrollHeight;
-        }
-
-        function clearLog() {
-            document.getElementById('consoleLog').innerHTML = '';
-        }
-
-        function toggleModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) modal.classList.toggle('hidden');
         }
     </script>
 </body>
